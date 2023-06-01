@@ -1,7 +1,8 @@
 mod kakoune;
 mod popup;
+mod tmux;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 
 use self::popup::Popup;
@@ -30,15 +31,11 @@ pub struct Args {
   width: usize,
 }
 
-fn wrapped_main() -> Result<()> {
+fn main() -> Result<()> {
   let args = Args::try_parse()?;
   let popup = Popup::new(args)?;
 
   popup.start()?;
 
   Ok(())
-}
-
-fn main() -> Result<()> {
-  wrapped_main().context("kak-popup")
 }

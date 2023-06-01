@@ -1,30 +1,28 @@
 use std::{
   fs::File,
   path::PathBuf,
-  process::Command,
   sync::atomic::{AtomicBool, AtomicUsize, Ordering},
-  time::{Duration, SystemTime},
+  time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use daemonize::Daemonize;
 use nix::{sys::stat::Mode, unistd};
 use tempfile::TempDir;
-use tokio::{
-  fs as tokio_fs,
-  process::Command as TokioCommand,
-  time::{self as tokio_time},
-};
+use tokio::{fs as tokio_fs, time as tokio_time};
 
-use crate::{kakoune::Kakoune, Args};
+use crate::{kakoune::Kakoune, tmux::Tmux, Args};
 
 pub struct Popup {
-  tmux_session: String,
+  tmux: Tmux,
   kakoune: Kakoune,
+
   width: AtomicUsize,
   height: AtomicUsize,
+
   tempdir: TempDir,
   fifo: PathBuf,
+
   quit: AtomicBool,
 }
 
@@ -41,7 +39,7 @@ impl Popup {
     unistd::mkfifo(&fifo, Mode::S_IRUSR | Mode::S_IWUSR)?;
 
     Ok(Self {
-      tmux_session: Self::new_session(width, height, args.command)?,
+      tmux: Tmux::new(&args.command, width, height)?,
       kakoune: Kakoune::new(args.kak_session, args.kak_client),
       width: AtomicUsize::new(width),
       height: AtomicUsize::new(height),
@@ -49,42 +47,6 @@ impl Popup {
       fifo,
       quit: AtomicBool::new(false),
     })
-  }
-
-  fn new_session(width: usize, height: usize, command: String) -> Result<String> {
-    let duration_since_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-    let session_name = duration_since_epoch.as_nanos().to_string();
-
-    let status = Command::new("tmux")
-      .args([
-        "new-session",
-        "-d",
-        "-s",
-        &session_name,
-        "-x",
-        &width.to_string(),
-        "-y",
-        &height.to_string(),
-      ])
-      .status()
-      .context("tmux")?;
-
-    if !status.success() {
-      return Err(anyhow::anyhow!(
-        "tmux new-session exited with non-zero status: {status}"
-      ));
-    }
-
-    let status = Command::new("tmux")
-      .args(["send-keys", "-t", &session_name, &command, "Enter"])
-      .status()
-      .context("tmux")?;
-
-    if !status.success() {
-      return Err(anyhow::anyhow!("tmux send-keys exited with non-zero status: {status}"));
-    }
-
-    Ok(session_name)
   }
 
   fn daemonize(&self) -> Result<()> {
@@ -109,37 +71,22 @@ impl Popup {
         return Ok(());
       }
 
-      let output = TokioCommand::new("tmux")
-        .args(["capture-pane", "-p", "-t", &self.tmux_session])
-        .output()
-        .await
-        .context("tmux capture-pane")?;
-
-      if !output.status.success() {
-        return Err(anyhow::anyhow!(
-          "tmux capture-pane exited with non-zero status: {}",
-          output.status
-        ));
-      }
+      let content = self.tmux.capture_pane().await?;
 
       // TODO: if output.stderr not empty, send to kakoune debug
 
       let width = self.width.load(Ordering::Relaxed);
       let height = self.height.load(Ordering::Relaxed);
 
-      let output = String::from_utf8_lossy(&output.stdout);
+      let output = String::from_utf8_lossy(&content);
       if output != last_output {
-        let mut output: Vec<String> = output
-          .split("\n")
-          .into_iter()
-          .map(|line| format!("{:<width$}", line, width = width))
-          .collect();
+        let mut output: Vec<String> = output.split('\n').map(|line| format!("{line:<width$}")).collect();
 
         if output.len() < height {
-          output.extend(vec![String::new(); height - output.len()])
+          output.extend(vec![String::new(); height - output.len()]);
         }
 
-        let output = output.join("\n").replace("'", "''");
+        let output = output.join("\n").replace('\'', "''");
 
         self.kakoune.eval(format!("info -style modal '{output}'")).await?;
       }
@@ -158,20 +105,7 @@ impl Popup {
       key => key,
     };
 
-    self.kakoune.debug(format!("sending key: {key}")).await?;
-
-    let output = TokioCommand::new("tmux")
-      .args(["send-keys", "-t", &self.tmux_session, key])
-      .output()
-      .await
-      .context("tmux capture-pane")?;
-
-    if !output.status.success() {
-      self
-        .kakoune
-        .debug(format!("tmux send-keys exited with non-zero status: {}", output.status))
-        .await?;
-    }
+    self.tmux.async_send_keys(key).await?;
 
     Ok(())
   }
@@ -197,14 +131,6 @@ impl Popup {
 
   #[tokio::main]
   async fn run(&self) -> Result<()> {
-    self
-      .kakoune
-      .debug(format!(
-        "started tmux at {} with width={:?} height={:?}",
-        self.tmux_session, self.width, self.height
-      ))
-      .await?;
-
     let refresh_loop = self.refresh_loop();
     let event_loop = self.event_loop();
 
@@ -223,19 +149,5 @@ impl Popup {
     self.run()?;
 
     Ok(())
-  }
-}
-
-impl Drop for Popup {
-  fn drop(&mut self) {
-    let status = Command::new("tmux")
-      .args(["kill-session", "-t", &self.tmux_session])
-      .status()
-      .expect("tmux kill-session");
-
-    assert!(
-      status.success(),
-      "tmux kill-session exited with non-zero status: {status}"
-    );
   }
 }
