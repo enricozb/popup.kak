@@ -7,8 +7,8 @@
 - `tmux capture-pane -e -p -t <session_name>`
   - `-e`: include escape sequences
   - `-p`: send to stdout
-- `tmux display -p -t <session_name> '#{pane_width} #{pane_height}'`
-  - get the panes current size
+- `tmux display -p -t <session_name> '#{pane_width} #{pane_height} #{cursor_y} #{culsor_x}'`
+  - get the panes current size, and cursor position
   - `-p`: send to stdout
 
 - `tmux resize-window -t <session_name> -x <width> -y <height>`

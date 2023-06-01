@@ -9,3 +9,6 @@ edition = "2021"
 anyhow = "1.0.71"
 clap = { version = "4.3.0", features = ["derive"] }
 daemonize = "0.5.0"
+nix = "0.26.2"
+tempfile = "3.5.0"
+tokio = { version = "1.28.2", features = ["full"] }

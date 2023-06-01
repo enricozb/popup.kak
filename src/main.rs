@@ -1,6 +1,7 @@
+mod kakoune;
 mod popup;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 
 use self::popup::Popup;
@@ -12,13 +13,13 @@ pub struct Args {
   #[arg(long)]
   command: String,
 
-  /// The fifo to send commands to kakoune.
-  #[arg(long, value_name = "URL")]
-  command_fifo: String,
+  /// The kakoune session to send commands to.
+  #[arg(long)]
+  kak_session: String,
 
-  /// The fifo to read keys from kakoune.
-  #[arg(long, value_name = "URL")]
-  keys_fifo: String,
+  /// The kakoune client to send commands to.
+  #[arg(long)]
+  kak_client: String,
 
   /// The height of the kakoune window.
   #[arg(long)]
@@ -29,13 +30,15 @@ pub struct Args {
   width: usize,
 }
 
-fn main() -> Result<()> {
-  let args = Args::parse();
+fn wrapped_main() -> Result<()> {
+  let args = Args::try_parse()?;
   let popup = Popup::new(args)?;
-
-  println!("starting tmux session {}...", popup.tmux_session);
 
   popup.start()?;
 
   Ok(())
+}
+
+fn main() -> Result<()> {
+  wrapped_main().context("kak-popup")
 }
