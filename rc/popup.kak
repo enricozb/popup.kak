@@ -1,11 +1,20 @@
-declare-option -hidden str popup_fifo
+declare-option -hidden str popup_keys_fifo
 
-define-command -override popup %{
+define-command -override popup -params 1 %{
   set-face window Information 'default,default@Default'
 
   evaluate-commands %sh{
-    chars=$(printf '=%.0s' {1..80})
-    echo "info -title some_command -style modal -markup '{red,black,red+u}$chars{Default}'" > $kak_command_fifo
+    kak_popup_output=$(
+      ./target/release/kak-popup \
+        --command "$1" \
+        --command-fifo "$kak_command_fifo" \
+        --keys-fifo "$kak_response_fifo" \
+        --height "$kak_window_height" \
+        --width "$kak_window_width"
+    )
+
+    printf "echo -debug %%§kak-popup:\n%s§\n" "$kak_popup_output"
+    printf "set-option window popup_keys_fifo '%s'\n" "$kak_response_fifo"
   }
 }
 

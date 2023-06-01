@@ -8,6 +8,6 @@
       let pkgs = nixpkgs.legacyPackages.${system};
       in {
         devShells.default =
-          pkgs.mkShell { packages = with pkgs; [ cargo clippy rustc ]; };
+          pkgs.mkShell { packages = with pkgs; [ cargo clippy rustc tmux ]; };
       });
 }
