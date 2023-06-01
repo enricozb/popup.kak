@@ -31,16 +31,9 @@ impl Tmux {
         "-y",
         &height.to_string(),
         "-d",
+        command,
       ],
     )?;
-
-    self.sync_send_keys(command)?;
-
-    Ok(())
-  }
-
-  pub fn sync_send_keys(&self, keys: &str) -> Result<()> {
-    sync_command("send-keys", ["-t", &self.session, keys])?;
 
     Ok(())
   }
@@ -51,7 +44,7 @@ impl Tmux {
     Ok(())
   }
 
-  pub async fn async_send_keys(&self, keys: &str) -> Result<()> {
+  pub async fn send_keys(&self, keys: &str) -> Result<()> {
     async_command("send-keys", ["-t", &self.session, keys]).await?;
 
     Ok(())
@@ -70,6 +63,8 @@ impl Drop for Tmux {
 }
 
 fn sync_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
+  // TODO: if output.stderr not empty, send to kakoune debug
+
   let output = Command::new("tmux")
     .arg(command)
     .args(args)

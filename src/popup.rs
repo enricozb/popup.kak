@@ -28,8 +28,8 @@ pub struct Popup {
 
 impl Popup {
   pub fn new(args: Args) -> Result<Self> {
-    let width = args.width.checked_sub(8).ok_or(anyhow::anyhow!("width too small"))?;
-    let height = args.height.checked_sub(8).ok_or(anyhow::anyhow!("height too small"))?;
+    let width = args.width.checked_sub(15).ok_or(anyhow::anyhow!("width too small"))?;
+    let height = args.height.checked_sub(15).ok_or(anyhow::anyhow!("height too small"))?;
 
     let tempdir = TempDir::new()?;
     let fifo = tempdir.path().join("kak-popup-commands");
@@ -62,37 +62,37 @@ impl Popup {
   }
 
   async fn refresh_loop(&self) -> Result<()> {
-    let sleep_duration = Duration::from_millis(500);
-
-    let last_output = String::new();
+    let sleep_duration = Duration::from_millis(100);
 
     loop {
       if self.quit.load(Ordering::Relaxed) {
         return Ok(());
       }
 
-      let content = self.tmux.capture_pane().await?;
-
-      // TODO: if output.stderr not empty, send to kakoune debug
-
-      let width = self.width.load(Ordering::Relaxed);
-      let height = self.height.load(Ordering::Relaxed);
-
-      let output = String::from_utf8_lossy(&content);
-      if output != last_output {
-        let mut output: Vec<String> = output.split('\n').map(|line| format!("{line:<width$}")).collect();
-
-        if output.len() < height {
-          output.extend(vec![String::new(); height - output.len()]);
-        }
-
-        let output = output.join("\n").replace('\'', "''");
-
-        self.kakoune.eval(format!("info -style modal '{output}'")).await?;
-      }
+      self.refresh().await?;
 
       tokio_time::sleep(sleep_duration).await;
     }
+  }
+
+  async fn refresh(&self) -> Result<()> {
+    let content = self.tmux.capture_pane().await?;
+
+    let width = self.width.load(Ordering::Relaxed);
+    let height = self.height.load(Ordering::Relaxed);
+
+    let output = String::from_utf8_lossy(&content);
+    let mut output: Vec<String> = output.split('\n').map(|line| format!("{line:<width$}")).collect();
+
+    if output.len() < height {
+      output.extend(vec![String::new(); height - output.len()]);
+    }
+
+    let output = output.join("\n").replace('\'', "''");
+
+    self.kakoune.eval(format!("info -style modal '{output}'")).await?;
+
+    Ok(())
   }
 
   async fn send_key(&self, key: &str) -> Result<()> {
@@ -105,7 +105,8 @@ impl Popup {
       key => key,
     };
 
-    self.tmux.async_send_keys(key).await?;
+    self.tmux.send_keys(key).await?;
+    self.refresh().await?;
 
     Ok(())
   }
@@ -131,15 +132,17 @@ impl Popup {
 
   #[tokio::main]
   async fn run(&self) -> Result<()> {
-    let refresh_loop = self.refresh_loop();
-    let event_loop = self.event_loop();
+    tokio::select! {
+      Err(err) = self.refresh_loop() => {
+        self.kakoune.debug(format!("refresh: {err:?}")).await?;
+      }
+      Err(err) = self.event_loop() => {
+        self.kakoune.debug(format!("event: {err:?}")).await?;
+      }
+    };
 
-    let (refresh_res, event_res) = tokio::join!(refresh_loop, event_loop);
-
-    refresh_res?;
-    event_res?;
-
-    self.kakoune.eval("info -style modal".to_string()).await?;
+    self.kakoune.eval("info -style modal").await?;
+    self.kakoune.exec("<c-_>").await?;
 
     Ok(())
   }

@@ -22,9 +22,7 @@ define-command -override popup -params 1 %{
 define-command -override popup-key-loop %{
   on-key %{
     evaluate-commands %sh{
-      echo "echo -debug got key $kak_key"
       if [ "$kak_key" = "<c-_>" ]; then
-        echo "echo -debug quitting!!"
         echo "quit" > "$kak_opt_popup_keys_fifo"
       else
         echo "$kak_key" > "$kak_opt_popup_keys_fifo"
