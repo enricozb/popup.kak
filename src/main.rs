@@ -10,6 +10,10 @@ use self::popup::Popup;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
+  /// The title of the popup.
+  #[arg(long)]
+  title: String,
+
   /// The command to execute.
   #[arg(long)]
   command: String,

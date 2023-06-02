@@ -17,6 +17,7 @@ pub struct Popup {
   tmux: Tmux,
   kakoune: Kakoune,
 
+  title: String,
   width: AtomicUsize,
   height: AtomicUsize,
 
@@ -41,6 +42,7 @@ impl Popup {
     Ok(Self {
       tmux: Tmux::new(&args.command, width, height)?,
       kakoune: Kakoune::new(args.kak_session, args.kak_client),
+      title: args.title,
       width: AtomicUsize::new(width),
       height: AtomicUsize::new(height),
       tempdir,
@@ -90,7 +92,10 @@ impl Popup {
 
     let output = output.join("\n").replace('\'', "''");
 
-    self.kakoune.eval(format!("info -style modal '{output}'")).await?;
+    self
+      .kakoune
+      .eval(format!("info -style modal -title '{}' '{output}'", self.title))
+      .await?;
 
     Ok(())
   }
@@ -100,6 +105,7 @@ impl Popup {
       "<esc>" => "Escape",
       "<ret>" => "Enter",
       "<tab>" => "Tab",
+      "<s-tab>" => "BTab",
       "<space>" => "Space",
       "<backspace>" => "BSpace",
       key => key,
@@ -115,6 +121,8 @@ impl Popup {
     loop {
       let event = tokio_fs::read_to_string(&self.fifo).await?;
       let event = event.trim();
+
+      self.kakoune.debug(format!("received '{event}'")).await?;
 
       if event == "quit" {
         self.quit.store(true, Ordering::Relaxed);
@@ -132,14 +140,12 @@ impl Popup {
 
   #[tokio::main]
   async fn run(&self) -> Result<()> {
-    tokio::select! {
-      Err(err) = self.refresh_loop() => {
-        self.kakoune.debug(format!("refresh: {err:?}")).await?;
-      }
-      Err(err) = self.event_loop() => {
-        self.kakoune.debug(format!("event: {err:?}")).await?;
-      }
-    };
+    // TODO: find a way such that, we tell kakoune to cancel the modal and on-key
+    //       as soon as either of the futures return, however we still want to
+    //       wait for everything here and report errors (if any).
+    if let Err(err) = tokio::try_join!(self.refresh_loop(), self.event_loop()) {
+      self.kakoune.debug(format!("error: {err:?}")).await?;
+    }
 
     self.kakoune.eval("info -style modal").await?;
     self.kakoune.exec("<c-_>").await?;
