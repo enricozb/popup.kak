@@ -16,6 +16,7 @@ impl Tmux {
 
     let tmux = Self { session };
     tmux.start(command, width, height)?;
+    tmux.set_option("status", "off")?;
 
     Ok(tmux)
   }
@@ -40,6 +41,12 @@ impl Tmux {
 
   fn kill(&self) -> Result<()> {
     sync_command("kill-session", ["-t", &self.session])?;
+
+    Ok(())
+  }
+
+  fn set_option(&self, option: &str, value: &str) -> Result<()> {
+    sync_command("set-option", ["-t", &self.session, option, value])?;
 
     Ok(())
   }

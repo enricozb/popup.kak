@@ -36,7 +36,12 @@ define-command -override popup-key-loop %{
 }
 
 define-command -override popup-close %{
+  # close out of the popup-key loop
+  execute-keys <c-_>
+
+  # close the popup
   info -style modal
 
+  # reset styling
   unset-face window Information
 }

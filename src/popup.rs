@@ -81,13 +81,15 @@ impl Popup {
     let content = self.tmux.capture_pane().await?;
 
     let width = self.width.load(Ordering::Relaxed);
-    let height = self.height.load(Ordering::Relaxed);
 
-    let output = String::from_utf8_lossy(&content);
-    let mut output: Vec<String> = output.split('\n').map(|line| format!("{line:<width$}")).collect();
+    let output = String::from_utf8_lossy(&content[..content.len() - 1]);
+    let mut output: Vec<&str> = output.rsplitn(2, '\n').collect();
+    output.reverse();
 
-    if output.len() < height {
-      output.extend(vec![String::new(); height - output.len()]);
+    let last_line;
+    if let Some(last) = output.last_mut() {
+      last_line = format!("{last:<width$}");
+      *last = &last_line;
     }
 
     let output = output.join("\n").replace('\'', "''");
@@ -101,7 +103,7 @@ impl Popup {
   }
 
   async fn send_key(&self, key: &str) -> Result<()> {
-    let key = match key {
+    let mut key = match key {
       "<esc>" => "Escape",
       "<ret>" => "Enter",
       "<tab>" => "Tab",
@@ -110,6 +112,12 @@ impl Popup {
       "<backspace>" => "BSpace",
       key => key,
     };
+
+    let new_key;
+    if key.starts_with("<c-") {
+      new_key = format!("C-{}", &key[3..key.len() - 1]);
+      key = &new_key;
+    }
 
     self.tmux.send_keys(key).await?;
     self.refresh().await?;
@@ -130,7 +138,13 @@ impl Popup {
       }
 
       if event.starts_with("resize") {
-        // TODO: handle resize
+        match event.split(' ').collect::<Vec<&str>>().as_slice() {
+          // TODO: handle resize
+          [_, width, height] => (),
+          _ => {
+            self.kakoune.debug(format!("invalid resize: {event}")).await?;
+          }
+        }
         continue;
       }
 
@@ -147,8 +161,7 @@ impl Popup {
       self.kakoune.debug(format!("error: {err:?}")).await?;
     }
 
-    self.kakoune.eval("info -style modal").await?;
-    self.kakoune.exec("<c-_>").await?;
+    self.kakoune.eval("popup-close").await?;
 
     Ok(())
   }
