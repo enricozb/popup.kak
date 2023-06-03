@@ -45,7 +45,7 @@ impl Popup {
 
     let (command, cleanup) = if let Some(kak_script) = kak_script {
       let cleanup = Cleanup::new(kak_script, tempdir.path());
-      let command = Self::wrap_command(&cleanup, command);
+      let command = Self::wrap_command(&cleanup, &command);
 
       (command, Some(cleanup))
     } else {
@@ -70,7 +70,7 @@ impl Popup {
       kakoune: Kakoune::new(kak_session, kak_client),
       cleanup,
 
-      title: title,
+      title,
       quit: AtomicBool::new(false),
       height: AtomicUsize::new(height),
       width: AtomicUsize::new(width),
@@ -80,7 +80,7 @@ impl Popup {
     })
   }
 
-  fn wrap_command(cleanup: &Cleanup, command: String) -> String {
+  fn wrap_command(cleanup: &Cleanup, command: &str) -> String {
     let command = command.replace('\'', "\\\'");
     let stdout = &cleanup.stdout;
     // let stderr = &cleanup.stderr;

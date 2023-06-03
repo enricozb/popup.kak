@@ -45,7 +45,7 @@ fn main() -> Result<()> {
   let popup = Popup::new(
     args.kak_session,
     args.kak_client,
-    args.kak_script.filter(|script| script.trim().len() > 0),
+    args.kak_script.filter(|script| !script.trim().is_empty()),
     args.title,
     args.command,
     args.height,
