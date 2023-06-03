@@ -5,21 +5,22 @@ use std::{
   time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use daemonize::Daemonize;
 use nix::{sys::stat::Mode, unistd};
 use tempfile::TempDir;
 use tokio::{fs as tokio_fs, time as tokio_time};
 
-use crate::{kakoune::Kakoune, tmux::Tmux, Args};
+use crate::{cleanup::Cleanup, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Popup {
   tmux: Tmux,
   kakoune: Kakoune,
+  cleanup: Option<Cleanup>,
 
   title: String,
-  width: AtomicUsize,
   height: AtomicUsize,
+  width: AtomicUsize,
 
   tempdir: TempDir,
   fifo: PathBuf,
@@ -28,27 +29,63 @@ pub struct Popup {
 }
 
 impl Popup {
-  pub fn new(args: Args) -> Result<Self> {
-    let width = args.width.checked_sub(15).ok_or(anyhow::anyhow!("width too small"))?;
-    let height = args.height.checked_sub(15).ok_or(anyhow::anyhow!("height too small"))?;
+  const PADDING: usize = 16;
 
+  pub fn new(
+    kak_session: String,
+    kak_client: String,
+    kak_script: Option<String>,
+
+    title: String,
+    command: String,
+    height: usize,
+    width: usize,
+  ) -> Result<Self> {
     let tempdir = TempDir::new()?;
+
+    let (command, cleanup) = if let Some(kak_script) = kak_script {
+      let cleanup = Cleanup::new(kak_script, tempdir.path());
+      let command = Self::wrap_command(&cleanup, command);
+
+      (command, Some(cleanup))
+    } else {
+      (command, None)
+    };
+
+    let height = height
+      .checked_sub(Self::PADDING)
+      .ok_or(anyhow::anyhow!("height too small"))?;
+
+    let width = width
+      .checked_sub(Self::PADDING)
+      .ok_or(anyhow::anyhow!("width too small"))?;
+
     let fifo = tempdir.path().join("kak-popup-commands");
+    unistd::mkfifo(&fifo, Mode::S_IRUSR | Mode::S_IWUSR)?;
 
     println!("{}", fifo.to_str().expect("fifo to_str"));
 
-    unistd::mkfifo(&fifo, Mode::S_IRUSR | Mode::S_IWUSR)?;
-
     Ok(Self {
-      tmux: Tmux::new(&args.command, width, height)?,
-      kakoune: Kakoune::new(args.kak_session, args.kak_client),
-      title: args.title,
-      width: AtomicUsize::new(width),
+      tmux: Tmux::new(&command, height, width)?,
+      kakoune: Kakoune::new(kak_session, kak_client),
+      cleanup,
+
+      title: title,
+      quit: AtomicBool::new(false),
       height: AtomicUsize::new(height),
+      width: AtomicUsize::new(width),
+
       tempdir,
       fifo,
-      quit: AtomicBool::new(false),
     })
+  }
+
+  fn wrap_command(cleanup: &Cleanup, command: String) -> String {
+    let command = command.replace('\'', "\\\'");
+    let stdout = &cleanup.stdout;
+    // let stderr = &cleanup.stderr;
+
+    format!("bash -c '{command} >{stdout:?}'")
   }
 
   fn daemonize(&self) -> Result<()> {
@@ -96,7 +133,10 @@ impl Popup {
 
     self
       .kakoune
-      .eval(format!("info -style modal -title '{}' '{output}'", self.title))
+      .eval(format!(
+        "info -style modal -title '{}: (<c-space> to exit popup)' '{output}'",
+        self.title
+      ))
       .await?;
 
     Ok(())
@@ -104,6 +144,11 @@ impl Popup {
 
   async fn send_key(&self, key: &str) -> Result<()> {
     let mut key = match key {
+      "<percent>" => "%",
+      "<up>" => "Up",
+      "<down>" => "Down",
+      "<left>" => "Left",
+      "<right>" => "Right",
       "<esc>" => "Escape",
       "<ret>" => "Enter",
       "<tab>" => "Tab",
@@ -130,8 +175,6 @@ impl Popup {
       let event = tokio_fs::read_to_string(&self.fifo).await?;
       let event = event.trim();
 
-      self.kakoune.debug(format!("received '{event}'")).await?;
-
       if event == "quit" {
         self.quit.store(true, Ordering::Relaxed);
         return Ok(());
@@ -139,8 +182,24 @@ impl Popup {
 
       if event.starts_with("resize") {
         match event.split(' ').collect::<Vec<&str>>().as_slice() {
-          // TODO: handle resize
-          [_, width, height] => (),
+          [_, height, width] => {
+            let height = height
+              .parse::<usize>()
+              .context("height")?
+              .checked_sub(Self::PADDING)
+              .ok_or(anyhow::anyhow!("height too small"))?;
+
+            let width = width
+              .parse::<usize>()
+              .context("width")?
+              .checked_sub(Self::PADDING)
+              .ok_or(anyhow::anyhow!("width too small"))?;
+
+            self.height.store(height, Ordering::Relaxed);
+            self.width.store(width, Ordering::Relaxed);
+
+            self.tmux.resize_window(height, width).await?;
+          }
           _ => {
             self.kakoune.debug(format!("invalid resize: {event}")).await?;
           }
@@ -154,10 +213,13 @@ impl Popup {
 
   #[tokio::main]
   async fn run(&self) -> Result<()> {
+    let refresh_loop = self.refresh_loop();
+    let event_loop = self.event_loop();
+
     // TODO: find a way such that, we tell kakoune to cancel the modal and on-key
     //       as soon as either of the futures return, however we still want to
     //       wait for everything here and report errors (if any).
-    if let Err(err) = tokio::try_join!(self.refresh_loop(), self.event_loop()) {
+    if let Err(err) = tokio::try_join!(refresh_loop, event_loop) {
       self.kakoune.debug(format!("error: {err:?}")).await?;
     }
 
@@ -166,10 +228,46 @@ impl Popup {
     Ok(())
   }
 
+  #[tokio::main]
+  async fn cleanup(&self) -> Result<()> {
+    // TODO: if they passed in a kak_script, we need to call the command along with stdout, stderr, status etc
+    //       cleanup tempdir should be automatic
+    if let Some(Cleanup {
+      kak_script,
+      stdout,
+      stderr,
+    }) = &self.cleanup
+    {
+      let stdout = tokio_fs::read_to_string(stdout).await?.trim().replace('\'', "''");
+      // let stderr = tokio_fs::read_to_string(stderr).await?.replace('\'', "''");
+
+      self
+        .kakoune
+        .eval(format!("popup-handle-output '{stdout}' '' %{{{kak_script}}}"))
+        .await?;
+    }
+
+    Ok(())
+  }
+
   pub fn start(&self) -> Result<()> {
     self.daemonize()?;
     self.run()?;
+    self.cleanup()?;
 
     Ok(())
+  }
+}
+
+impl Drop for Popup {
+  fn drop(&mut self) {
+    if let Err(err) = self.tmux.kill() {
+      self
+        .kakoune
+        .sync_debug(format!("failed to kill tmux session {}: {err:?}", self.tmux.session))
+        .expect("debug");
+    }
+
+    self.kakoune.sync_debug("exiting popup").expect("debug");
   }
 }

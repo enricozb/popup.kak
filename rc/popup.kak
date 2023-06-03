@@ -1,47 +1,88 @@
 declare-option -hidden str popup_keys_fifo
-declare-option -hidden str popup_stdout
-declare-option -hidden str popup_stderr
+declare-option -hidden str popup_output
 
-define-command -override popup -params 2 %{
+define-command -override popup -params 2..3 %{
   set-face window Information 'default,default@Default'
 
   evaluate-commands %sh{
-    kak_popup_fifo=$(
+    kak_popup_fifo="$(
       ./target/release/kak-popup \
-        --title "$1" \
-        --command "$2" \
         --kak-session "$kak_session" \
         --kak-client "$kak_client" \
+        --kak-script "$3" \
+        --title "$1" \
+        --command "$2" \
         --height "$kak_window_height" \
         --width "$kak_window_width"
-    )
+    )"
 
     printf "set-option window popup_keys_fifo '%s'\n" "$kak_popup_fifo"
   }
 
-  popup-key-loop
+  hook -group popup window WinResize .* %{
+    nop %sh{
+      printf "resize $kak_window_height $kak_window_width\n" > "$kak_opt_popup_keys_fifo"
+    }
+  }
+
+  popup-capture-keys
 }
 
-define-command -override popup-key-loop %{
+define-command -override popup-capture-keys %{
   on-key %{
     evaluate-commands %sh{
-      if [ "$kak_key" = "<c-_>" ]; then
-        echo "quit" > "$kak_opt_popup_keys_fifo"
+      if [ "$kak_key" = "<c-space>" ]; then
+        printf "quit\n" > "$kak_opt_popup_keys_fifo"
       else
-        echo "$kak_key" > "$kak_opt_popup_keys_fifo"
-        echo popup-key-loop
+        printf "$kak_key\n" > "$kak_opt_popup_keys_fifo"
+        printf popup-capture-keys
       fi
     }
   }
 }
 
 define-command -override popup-close %{
-  # close out of the popup-key loop
-  execute-keys <c-_>
+  try %{
+    evaluate-commands %sh{
+      if [ -z "$kak_opt_popup_keys_fifo" ]; then
+        printf 'fail "no popup open"\n'
+      fi
+    }
 
-  # close the popup
-  info -style modal
+    # TODO there has to be a better way of doing this. if we're not waiting
+    #      when this fires, then another key might be queued up.
+    #      we could spawn a prompt -password before entering on-key, in order
+    #      to protect against multiple firings of <c-space>
+    # close out of the popup-key loop
+    execute-keys <c-space>
 
-  # reset styling
-  unset-face window Information
+    # close the popup
+    info -style modal
+
+    unset-face window Information
+    unset-option window popup_keys_fifo
+    remove-hooks window popup
+  }
+}
+
+define-command -override popup-handle-output -params 3 -docstring "
+popup-handle-output <stdout> <stderr> <command>: handle popup output
+
+Runs the provided <command> with the option popup_output set to <stdout>.
+If <stderr> is set, then a modal is shown with the error, and <command>
+is not executed.
+" %{
+  evaluate-commands %sh{
+    stdout="$1"
+    stderr="$2"
+    script="$3"
+
+    if [ -n "$stderr" ]; then
+      printf 'info -style modal -title "popup error" -markup {red} %%§%s§\n' "$stderr"
+    elif [ -n "$script" ]; then
+      printf 'set-option window popup_output %%§%s§\n' "$stdout"
+      printf 'evaluate-commands %%§%s§\n' "$script"
+      printf 'unset-option window popup_output\n'
+    fi
+  }
 }

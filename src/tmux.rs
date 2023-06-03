@@ -4,24 +4,24 @@ use anyhow::{Context, Result};
 use tokio::process::Command as TokioCommand;
 
 pub struct Tmux {
-  session: String,
+  pub session: String,
 }
 
 impl Tmux {
-  pub fn new(command: &str, width: usize, height: usize) -> Result<Self> {
+  pub fn new(command: &str, height: usize, width: usize) -> Result<Self> {
     let session = SystemTime::now()
       .duration_since(SystemTime::UNIX_EPOCH)?
       .as_nanos()
       .to_string();
 
     let tmux = Self { session };
-    tmux.start(command, width, height)?;
+    tmux.start(command, height, width)?;
     tmux.set_option("status", "off")?;
 
     Ok(tmux)
   }
 
-  fn start(&self, command: &str, width: usize, height: usize) -> Result<()> {
+  fn start(&self, command: &str, height: usize, width: usize) -> Result<()> {
     sync_command(
       "new-session",
       [
@@ -39,7 +39,7 @@ impl Tmux {
     Ok(())
   }
 
-  fn kill(&self) -> Result<()> {
+  pub fn kill(&self) -> Result<()> {
     sync_command("kill-session", ["-t", &self.session])?;
 
     Ok(())
@@ -61,11 +61,15 @@ impl Tmux {
     // TODO: add -e for escape sequences
     async_command("capture-pane", ["-t", &self.session, "-p"]).await
   }
-}
 
-impl Drop for Tmux {
-  fn drop(&mut self) {
-    self.kill().expect("kill");
+  pub async fn resize_window(&self, height: usize, width: usize) -> Result<()> {
+    async_command(
+      "resize-window",
+      ["-t", &self.session, "-x", &width.to_string(), "-y", &height.to_string()],
+    )
+    .await?;
+
+    Ok(())
   }
 }
 
