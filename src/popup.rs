@@ -29,6 +29,7 @@ pub struct Popup<'a> {
 
 impl<'a> Popup<'a> {
   const PADDING: usize = 16;
+  const REFRESH: Duration = Duration::from_millis(50);
 
   pub fn new(kakoune: &'a Kakoune, title: Option<String>, height: usize, width: usize, command: &str) -> Result<Self> {
     let height = height
@@ -72,8 +73,6 @@ impl<'a> Popup<'a> {
   }
 
   async fn refresh_loop(&self) -> Result<()> {
-    let sleep_duration = Duration::from_millis(100);
-
     loop {
       if self.quit.load(Ordering::Relaxed) {
         return Ok(());
@@ -81,7 +80,7 @@ impl<'a> Popup<'a> {
 
       self.refresh().await?;
 
-      tokio_time::sleep(sleep_duration).await;
+      tokio_time::sleep(Self::REFRESH).await;
     }
   }
 

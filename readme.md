@@ -6,9 +6,16 @@ Kakoune popups for running ephemeral commands.
 [![asciicast](https://asciinema.org/a/589470.svg)](https://asciinema.org/a/589470)
 
 ## Installation
+### Prerequisites
+`tmux` must be installed.
+
+### Recommended
+1. Install the binary with `cargo install kak-popup`.
+2. Add `evaluate-commands %sh{kak-popup init}` to your `kakrc`.
+
+### Manual
 1. Install the plugin using nix or manually place `rc/popup.kak` into your autoload directory.
-2. `cargo install kak-popup`.
-3. `tmux` must also be installed.
+2. Install `kak-popup` with cargo or nix.
 
 ## Usage
 Within kakoune
