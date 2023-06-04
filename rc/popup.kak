@@ -18,7 +18,7 @@ define-command -override popup -params 1.. -docstring '
                             exits, providing any standard output through
                             %opt{popup_output}
     --title <title>         the title of the modal
-    --on_err <on_err>       what to do on non-zero exit status
+    --on-err <on-err>       what to do on non-zero exit status
               warn          show a modal with stderr
               dismiss       dismiss modal without running KAK_SCRIPT
               ignore        ignore status and always run KAK_SCRIPT
@@ -90,11 +90,11 @@ define-command -override -hidden popup-close %{
 }
 
 define-command -override -hidden popup-handle-output -params 5 -docstring "
-  popup-handle-output <on_err> <status> <stdout> <stderr> <command>: handle popup output
+  popup-handle-output <on-err> <status> <stdout> <stderr> <command>: handle popup output
 
   Runs the provided <command> with the option popup_output set to <stdout>.
 
-  <on_err> dictates how to interpret a non-zero <status>:
+  <on-err> dictates how to interpret a non-zero <status>:
     - warn          show a modal with <stderr>
     - dismiss       dismiss modal without running <script>
     - ignore        ignore <status> and always run <script>

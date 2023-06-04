@@ -36,7 +36,7 @@ Switches:
                           exits, providing any standard output through
                           %opt{popup_output}
   --title <title>         the title of the modal
-  --on_err <on_err>       what to do on non-zero exit status
+  --on-err <on-err>       what to do on non-zero exit status
             warn          show a modal with stderr
             dismiss       dismiss modal without running KAK_SCRIPT
             ignore        ignore status and always run KAK_SCRIPT
