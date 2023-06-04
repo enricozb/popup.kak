@@ -45,7 +45,7 @@ define-command -override popup -params 1.. -docstring '
   popup-capture-keys
 }
 
-define-command -override popup-capture-keys %{
+define-command -override -hidden popup-capture-keys %{
   on-key %{
     evaluate-commands %sh{
       if [ "$kak_key" = "<c-space>" ]; then
@@ -58,7 +58,7 @@ define-command -override popup-capture-keys %{
   }
 }
 
-define-command -override popup-close %{
+define-command -override -hidden popup-close %{
   try %{
     evaluate-commands %sh{
       if [ -z "$kak_opt_popup_keys_fifo" ]; then
@@ -82,7 +82,7 @@ define-command -override popup-close %{
   }
 }
 
-define-command -override popup-handle-output -params 4 -docstring "
+define-command -override -hidden popup-handle-output -params 4 -docstring "
   popup-handle-output <status> <stdout> <stderr> <command>: handle popup output
 
   Runs the provided <command> with the option popup_output set to <stdout>.
