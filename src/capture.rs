@@ -5,10 +5,11 @@ use futures::future::OptionFuture;
 use tempfile::TempDir;
 use tokio::fs as tokio_fs;
 
-use crate::{escape, kakoune::Kakoune};
+use crate::{args::OnErr, escape, kakoune::Kakoune};
 
 pub struct Capture {
   kak_script: Option<String>,
+  on_err: OnErr,
   status: Option<PathBuf>,
   stdout: Option<PathBuf>,
   stderr: Option<PathBuf>,
@@ -16,13 +17,19 @@ pub struct Capture {
 }
 
 impl Capture {
-  pub fn new(kak_script: Option<String>, warn: bool) -> Result<Self> {
+  pub fn new(kak_script: Option<String>, on_err: OnErr) -> Result<Self> {
     let tempdir = TempDir::new()?;
 
-    let (status, stderr) = if warn {
-      (Some(tempdir.path().join("status")), Some(tempdir.path().join("stderr")))
+    let status = if Self::should_capture_status(on_err) {
+      Some(tempdir.path().join("status"))
     } else {
-      (None, None)
+      None
+    };
+
+    let stderr = if Self::should_capture_stderr(on_err) {
+      Some(tempdir.path().join("stderr"))
+    } else {
+      None
     };
 
     let stdout = if kak_script.is_some() {
@@ -33,11 +40,26 @@ impl Capture {
 
     Ok(Self {
       kak_script,
+      on_err,
       status,
       stdout,
       stderr,
       _tempdir: tempdir,
     })
+  }
+
+  fn should_capture_status(on_err: OnErr) -> bool {
+    match on_err {
+      OnErr::Warn | OnErr::Dismiss => true,
+      OnErr::Ignore => false,
+    }
+  }
+
+  fn should_capture_stderr(on_err: OnErr) -> bool {
+    match on_err {
+      OnErr::Warn => true,
+      OnErr::Ignore | OnErr::Dismiss => false,
+    }
   }
 
   pub fn command(&self, command: &str, args: &[String]) -> String {
@@ -76,20 +98,24 @@ impl Capture {
 
   #[tokio::main]
   pub async fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {
+    let on_err = escape::kak(format!("{}", self.on_err));
+
     let (status, stdout, stderr) = tokio::join!(
       OptionFuture::from(self.status.as_ref().map(tokio_fs::read_to_string)),
       OptionFuture::from(self.stdout.as_ref().map(tokio_fs::read_to_string)),
       OptionFuture::from(self.stderr.as_ref().map(tokio_fs::read_to_string)),
     );
 
-    let status = escape::kak(status.transpose()?.unwrap_or("0".to_string()).trim());
+    let status = escape::kak(status.transpose()?.unwrap_or_default().trim());
     let stdout = escape::kak(stdout.transpose()?.unwrap_or_default().trim());
     let stderr = escape::kak(stderr.transpose()?.unwrap_or_default().trim());
 
     let kak_script = escape::kak(self.kak_script.clone().unwrap_or_default());
 
     kakoune
-      .eval(format!("popup-handle-output {status} {stdout} {stderr} {kak_script}"))
+      .eval(format!(
+        "popup-handle-output {on_err} {status} {stdout} {stderr} {kak_script}"
+      ))
       .await?;
 
     Ok(())

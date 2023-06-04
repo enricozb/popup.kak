@@ -1,4 +1,17 @@
-use clap::{Args as SubcommandArgs, Parser, Subcommand};
+use clap::{Args as SubcommandArgs, Parser, Subcommand, ValueEnum};
+use strum::Display;
+
+#[derive(Clone, Copy, Default, Debug, Display, ValueEnum)]
+#[strum(serialize_all = "snake_case")]
+pub enum OnErr {
+  /// Show a modal with stderr.
+  Warn,
+  /// Dismiss modal and don't run any provided KAK_SCRIPT.
+  #[default]
+  Dismiss,
+  /// Ignore status and always run any provided KAK_SCRIPT.
+  Ignore,
+}
 
 #[derive(SubcommandArgs)]
 pub struct Popup {
@@ -22,9 +35,9 @@ pub struct Popup {
   #[arg(long)]
   pub width: usize,
 
-  /// Show warning modal if COMMAND has non-zero exit status.
-  #[arg(long)]
-  pub warn: bool,
+  /// What to do on non-zero exit status.
+  #[arg(long, default_value_t)]
+  pub on_err: OnErr,
 
   /// The title of the popup.
   #[arg(long)]

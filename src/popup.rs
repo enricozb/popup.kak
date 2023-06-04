@@ -132,6 +132,7 @@ impl<'a> Popup<'a> {
       key => key,
     };
 
+    // handle <a-*> <s-*> and combinations <c-a-w>
     let new_key;
     if key.starts_with("<c-") {
       new_key = format!("C-{}", &key[3..key.len() - 1]);

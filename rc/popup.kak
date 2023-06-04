@@ -18,13 +18,17 @@ define-command -override popup -params 1.. -docstring '
                             exits, providing any standard output through
                             %opt{popup_output}
     --title <title>         the title of the modal
-    --warn                  show stderr if exit status is non-zero
+    --on_err <on_err>       what to do on non-zero exit status
+              warn          show a modal with stderr
+              dismiss       dismiss modal without running KAK_SCRIPT
+              ignore        ignore status and always run KAK_SCRIPT
+
 ' %{
   popup-style-modal
 
   evaluate-commands %sh{
     kak_popup_fifo=$(
-      kak-popup popup \
+      ./target/release/kak-popup popup \
         --kak-session "$kak_session" \
         --kak-client "$kak_client" \
         --height "$kak_window_height" \
@@ -85,25 +89,32 @@ define-command -override -hidden popup-close %{
   }
 }
 
-define-command -override -hidden popup-handle-output -params 4 -docstring "
-  popup-handle-output <status> <stdout> <stderr> <command>: handle popup output
+define-command -override -hidden popup-handle-output -params 5 -docstring "
+  popup-handle-output <on_err> <status> <stdout> <stderr> <command>: handle popup output
 
   Runs the provided <command> with the option popup_output set to <stdout>.
-  If <stderr> is set, then a modal is shown with the error, and <command>
-  is not executed.
+
+  <on_err> dictates how to interpret a non-zero <status>:
+    - warn          show a modal with <stderr>
+    - dismiss       dismiss modal without running <script>
+    - ignore        ignore <status> and always run <script>
 " %{
   evaluate-commands %sh{
-    status="${1:-0}"
-    stdout="$2"
-    stderr="${3:-<no stderr>}"
-    script="$4"
+    on_err="$1"
+    status="${2:-0}"
+    stdout="$3"
+    stderr="${4:-<no stderr>}"
+    script="$5"
 
-    printf '%s\n' "echo -debug 'popup-handle-output: status=$status'"
+    printf '%s\n' "echo -debug 'popup-handle-output: on_err=$1 status=$2'"
 
-    if [ "$status" != 0 ]; then
+    if [ "$on_err" = warn ] && [ "$status" != 0 ]; then
       printf '%s\n' 'popup-style-modal'
       printf '%s\n' "info -style modal -title 'exit status: $status (<esc> to exit)' -markup %§{red}${stderr}§"
       printf '%s\n' 'popup-error-capture-keys'
+    elif [ "$on_err" = dismiss ] && [ "$status" != 0 ]; then
+      # intentionally do nothing
+      exit 0
     elif [ -n "$script" ]; then
       printf '%s\n' "set-option window popup_output %§${stdout}§"
       printf '%s\n' "evaluate-commands %§${script}§"

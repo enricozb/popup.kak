@@ -15,17 +15,15 @@ use self::{
   popup::Popup,
 };
 
-fn init() -> Result<()> {
+fn init() {
   let kak_script = include_str!("../rc/popup.kak");
 
   println!("{kak_script}");
-
-  Ok(())
 }
 
 fn popup(args: PopupArgs) -> Result<()> {
   let kakoune = Kakoune::new(args.kak_session, args.kak_client);
-  let capture = Capture::new(args.kak_script, args.warn)?;
+  let capture = Capture::new(args.kak_script, args.on_err)?;
   let command = capture.command(&args.command, &args.args);
 
   Popup::new(&kakoune, args.title, args.height, args.width, &command)?.show()?;
@@ -39,7 +37,7 @@ fn main() -> Result<()> {
   let args = Args::parse();
 
   match args.command {
-    Command::Init => init()?,
+    Command::Init => init(),
     Command::Popup(args) => popup(args)?,
   }
 
