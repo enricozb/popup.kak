@@ -3,6 +3,8 @@ use std::{process::Command, time::SystemTime};
 use anyhow::{Context, Result};
 use tokio::process::Command as TokioCommand;
 
+use crate::geometry::Size;
+
 pub struct Tmux {
   pub session: String,
 }
@@ -62,10 +64,17 @@ impl Tmux {
     async_command("capture-pane", ["-t", &self.session, "-p"]).await
   }
 
-  pub async fn resize_window(&self, height: usize, width: usize) -> Result<()> {
+  pub async fn resize_window(&self, size: Size) -> Result<()> {
     async_command(
       "resize-window",
-      ["-t", &self.session, "-x", &width.to_string(), "-y", &height.to_string()],
+      [
+        "-t",
+        &self.session,
+        "-x",
+        &size.width.to_string(),
+        "-y",
+        &size.height.to_string(),
+      ],
     )
     .await?;
 

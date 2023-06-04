@@ -8,6 +8,7 @@ use tokio::{io::AsyncWriteExt, process::Command as TokioCommand};
 
 use crate::escape;
 
+#[derive(Clone)]
 pub struct Kakoune {
   session: String,
   client: String,
@@ -18,7 +19,7 @@ impl Kakoune {
     Self { session, client }
   }
 
-  fn sync_command<S: AsRef<[u8]>>(&self, command: S) -> Result<()> {
+  fn sync_command(&self, command: impl AsRef<[u8]>) -> Result<()> {
     let mut child = Command::new("kak")
       .args(["-p", &self.session])
       .stdin(Stdio::piped())
@@ -33,7 +34,7 @@ impl Kakoune {
     Ok(())
   }
 
-  async fn command<S: AsRef<[u8]>>(&self, command: S) -> Result<()> {
+  async fn command(&self, command: impl AsRef<[u8]>) -> Result<()> {
     let mut child = TokioCommand::new("kak")
       .args(["-p", &self.session])
       .stdin(Stdio::piped())
@@ -49,7 +50,7 @@ impl Kakoune {
     Ok(())
   }
 
-  pub fn sync_debug<S: AsRef<str>>(&self, message: S) -> Result<()> {
+  pub fn sync_debug(&self, message: impl AsRef<str>) -> Result<()> {
     let message = escape::kak(message);
 
     self.sync_command(format!("echo -debug 'kak-popup:' {message}").as_bytes())?;
@@ -57,7 +58,7 @@ impl Kakoune {
     Ok(())
   }
 
-  pub async fn debug<S: AsRef<str>>(&self, message: S) -> Result<()> {
+  pub async fn debug(&self, message: impl AsRef<str>) -> Result<()> {
     let message = escape::kak(message);
 
     self
@@ -67,7 +68,7 @@ impl Kakoune {
     Ok(())
   }
 
-  pub async fn eval<S: AsRef<str>>(&self, command: S) -> Result<()> {
+  pub async fn eval(&self, command: impl AsRef<str>) -> Result<()> {
     let command = escape::kak(command);
 
     self
@@ -77,12 +78,20 @@ impl Kakoune {
     Ok(())
   }
 
-  pub async fn exec<S: AsRef<str>>(&self, keys: S) -> Result<()> {
+  pub async fn exec(&self, keys: impl AsRef<str>) -> Result<()> {
     let keys = escape::kak(keys);
 
     self
       .command(format!("execute-keys -client '{}' {keys}", self.client).as_bytes())
       .await?;
+
+    Ok(())
+  }
+
+  pub fn debug_on_error(&self, f: impl FnOnce() -> Result<()>) -> Result<()> {
+    if let Err(err) = f() {
+      self.sync_debug(format!("error: {err:?}"))?;
+    }
 
     Ok(())
   }

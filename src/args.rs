@@ -15,6 +15,10 @@ pub enum OnErr {
 
 #[derive(SubcommandArgs)]
 pub struct Popup {
+  /// Daemonizes the process.
+  #[arg(short, long)]
+  pub daemonize: bool,
+
   /// The kakoune session to send commands to.
   #[arg(long)]
   pub kak_session: String,

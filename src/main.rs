@@ -1,12 +1,18 @@
 mod args;
 mod capture;
 mod escape;
+mod fifo;
+mod geometry;
 mod kakoune;
 mod popup;
 mod tmux;
 
+use std::fs::File;
+
 use anyhow::Result;
 use clap::Parser;
+use daemonize::Daemonize;
+use tempfile::TempDir;
 
 use self::{
   args::{Args, Command, Popup as PopupArgs},
@@ -15,6 +21,18 @@ use self::{
   popup::Popup,
 };
 
+fn daemonize() -> Result<TempDir> {
+  let tempdir = TempDir::new()?;
+
+  Daemonize::new()
+    .stdout(File::create(tempdir.path().join("stdout"))?)
+    .stderr(File::create(tempdir.path().join("stderr"))?)
+    .pid_file(tempdir.path().join("pid"))
+    .start()?;
+
+  Ok(tempdir)
+}
+
 fn init() {
   let kak_script = include_str!("../rc/popup.kak");
 
@@ -22,13 +40,20 @@ fn init() {
 }
 
 fn popup(args: PopupArgs) -> Result<()> {
+  let _: Option<TempDir> = if args.daemonize { Some(daemonize()?) } else { None };
+
   let kakoune = Kakoune::new(args.kak_session, args.kak_client);
-  let capture = Capture::new(args.kak_script, args.on_err)?;
-  let command = capture.command(&args.command, &args.args);
 
-  Popup::new(&kakoune, args.title, args.height, args.width, &command)?.show()?;
+  kakoune.debug_on_error(|| {
+    let capture = Capture::new(args.kak_script, args.on_err)?;
+    let command = capture.command(&args.command, &args.args);
 
-  capture.handle_output(&kakoune)?;
+    Popup::new(kakoune.clone(), args.title, args.height, args.width, &command)?.show()?;
+
+    capture.handle_output(&kakoune)?;
+
+    Ok(())
+  })?;
 
   Ok(())
 }
