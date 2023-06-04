@@ -3,7 +3,7 @@
 Kakoune popups for running ephemeral commands.
 
 ## Demo
-[![asciicast](https://asciinema.org/a/589470.svg)](https://asciinema.org/a/589470)
+[![asciicast](https://asciinema.org/a/589470.svg)][1]
 
 ## Installation
 ### Prerequisites
@@ -36,19 +36,10 @@ Switches:
                           exits, providing any standard output through
                           %opt{popup_output}
   --title <title>         the title of the modal
-  --status <status>       what to do on non-zero exit status
+  --on_err <on_err>       what to do on non-zero exit status
             warn          show a modal with stderr
             dismiss       dismiss modal without running KAK_SCRIPT
             ignore        ignore status and always run KAK_SCRIPT
-```
-
-For example,
-```
-popup fish
-```
-will spawn a fish shell. For a simple file-picker:
-```
-popup --title open --kak-script %{edit %opt{popup_output}} fzf
 ```
 
 ## Examples
@@ -61,3 +52,5 @@ popup fish
 # a file picker
 popup --title open --kak-script %{edit %opt{popup_output}} -- fzf
 ```
+
+[1]: https://asciinema.org/a/589470
