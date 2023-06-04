@@ -1,4 +1,4 @@
-mod cleanup;
+mod capture;
 mod escape;
 mod kakoune;
 mod popup;
@@ -7,7 +7,7 @@ mod tmux;
 use anyhow::Result;
 use clap::Parser;
 
-use self::{kakoune::Kakoune, popup::Popup};
+use self::{capture::Capture, kakoune::Kakoune, popup::Popup};
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -24,10 +24,6 @@ pub struct Args {
   #[arg(long)]
   kak_script: Option<String>,
 
-  /// The title of the popup.
-  #[arg(long)]
-  title: Option<String>,
-
   /// The height of the kakoune window.
   #[arg(long)]
   height: usize,
@@ -40,6 +36,10 @@ pub struct Args {
   #[arg(long)]
   warn: bool,
 
+  /// The title of the popup.
+  #[arg(long)]
+  title: Option<String>,
+
   /// The command to execute within the popup.
   command: String,
 
@@ -50,18 +50,12 @@ pub struct Args {
 fn main() -> Result<()> {
   let args = Args::parse();
   let kakoune = Kakoune::new(args.kak_session, args.kak_client);
+  let capture = Capture::new(args.kak_script, args.warn)?;
+  let command = capture.command(&args.command, &args.args);
 
-  let popup = Popup::new(
-    kakoune,
-    args.kak_script,
-    args.title,
-    &args.command,
-    &args.args,
-    args.height,
-    args.width,
-  )?;
+  Popup::new(&kakoune, args.title, args.height, args.width, &command)?.show()?;
 
-  popup.start()?;
+  capture.handle_output(&kakoune)?;
 
   Ok(())
 }

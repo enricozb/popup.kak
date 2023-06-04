@@ -11,12 +11,11 @@ use nix::{sys::stat::Mode, unistd};
 use tempfile::TempDir;
 use tokio::{fs as tokio_fs, time as tokio_time};
 
-use crate::{cleanup::Cleanup, escape, kakoune::Kakoune, tmux::Tmux};
+use crate::{escape, kakoune::Kakoune, tmux::Tmux};
 
-pub struct Popup {
+pub struct Popup<'a> {
   tmux: Tmux,
-  kakoune: Kakoune,
-  cleanup: Option<Cleanup>,
+  kakoune: &'a Kakoune,
 
   title: Option<String>,
   height: AtomicUsize,
@@ -28,34 +27,10 @@ pub struct Popup {
   quit: AtomicBool,
 }
 
-impl Popup {
+impl<'a> Popup<'a> {
   const PADDING: usize = 16;
 
-  pub fn new(
-    kakoune: Kakoune,
-    kak_script: Option<String>,
-
-    title: Option<String>,
-    command: &str,
-    args: &[String],
-    height: usize,
-    width: usize,
-  ) -> Result<Self> {
-    let tempdir = TempDir::new()?;
-
-    let (command, cleanup) = if let Some(kak_script) = kak_script {
-      let cleanup = Cleanup::new(kak_script, tempdir.path());
-      let command = Self::wrap_command(&cleanup, command, args);
-
-      (command, Some(cleanup))
-    } else {
-      let args: Vec<String> = args.iter().map(escape::bash).collect();
-      let command = escape::bash(format!("{command} {}", args.join(" ")));
-      (format!("bash -c {command}"), None)
-    };
-
-    kakoune.sync_debug(format!("command: {command}"))?;
-
+  pub fn new(kakoune: &'a Kakoune, title: Option<String>, height: usize, width: usize, command: &str) -> Result<Self> {
     let height = height
       .checked_sub(Self::PADDING)
       .ok_or(anyhow::anyhow!("height too small"))?;
@@ -64,15 +39,15 @@ impl Popup {
       .checked_sub(Self::PADDING)
       .ok_or(anyhow::anyhow!("width too small"))?;
 
+    let tempdir = TempDir::new()?;
     let fifo = tempdir.path().join("kak-popup-commands");
     unistd::mkfifo(&fifo, Mode::S_IRUSR | Mode::S_IWUSR)?;
 
     println!("{}", fifo.to_str().expect("fifo to_str"));
 
     Ok(Self {
-      tmux: Tmux::new(&command, height, width)?,
+      tmux: Tmux::new(command, height, width)?,
       kakoune,
-      cleanup,
 
       title,
       quit: AtomicBool::new(false),
@@ -82,16 +57,6 @@ impl Popup {
       tempdir,
       fifo,
     })
-  }
-
-  fn wrap_command(cleanup: &Cleanup, command: &str, args: &[String]) -> String {
-    let args: Vec<String> = args.iter().map(escape::bash).collect();
-    let stdout = escape::bash(cleanup.stdout.to_string_lossy());
-    let command = escape::bash(format!("{command} {} >{stdout}", args.join(" ")));
-
-    // let stderr = &cleanup.stderr;
-
-    format!("bash -c {command}")
   }
 
   fn daemonize(&self) -> Result<()> {
@@ -238,39 +203,15 @@ impl Popup {
     Ok(())
   }
 
-  #[tokio::main]
-  async fn cleanup(&self) -> Result<()> {
-    // TODO: if they passed in a kak_script, we need to call the command along with stdout, stderr, status etc
-    //       cleanup tempdir should be automatic
-    if let Some(Cleanup {
-      kak_script,
-      stdout,
-      stderr,
-    }) = &self.cleanup
-    {
-      let kak_script = escape::kak(kak_script);
-      let stdout = escape::kak(tokio_fs::read_to_string(stdout).await?.trim());
-      // let stderr = tokio_fs::read_to_string(stderr).await?.replace('\'', "''");
-
-      self
-        .kakoune
-        .eval(format!("popup-handle-output {stdout} '' {kak_script}"))
-        .await?;
-    }
-
-    Ok(())
-  }
-
-  pub fn start(&self) -> Result<()> {
+  pub fn show(&self) -> Result<()> {
     self.daemonize()?;
     self.run()?;
-    self.cleanup()?;
 
     Ok(())
   }
 }
 
-impl Drop for Popup {
+impl<'a> Drop for Popup<'a> {
   fn drop(&mut self) {
     if let Err(err) = self.tmux.kill() {
       self

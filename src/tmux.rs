@@ -74,8 +74,6 @@ impl Tmux {
 }
 
 fn sync_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
-  // TODO: if output.stderr not empty, send to kakoune debug
-
   let output = Command::new("tmux")
     .arg(command)
     .args(args)
