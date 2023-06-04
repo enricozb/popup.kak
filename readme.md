@@ -3,6 +3,7 @@
 Kakoune popups for running ephemeral commands.
 
 ## Demo
+[![asciicast](https://asciinema.org/a/589470.svg)](https://asciinema.org/a/589470)
 
 ## Installation
 1. Install the plugin using nix or manually place `rc/popup.kak` into your autoload directory.
