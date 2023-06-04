@@ -11,14 +11,14 @@ use nix::{sys::stat::Mode, unistd};
 use tempfile::TempDir;
 use tokio::{fs as tokio_fs, time as tokio_time};
 
-use crate::{cleanup::Cleanup, kakoune::Kakoune, tmux::Tmux};
+use crate::{cleanup::Cleanup, escape, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Popup {
   tmux: Tmux,
   kakoune: Kakoune,
   cleanup: Option<Cleanup>,
 
-  title: String,
+  title: Option<String>,
   height: AtomicUsize,
   width: AtomicUsize,
 
@@ -36,21 +36,27 @@ impl Popup {
     kak_client: String,
     kak_script: Option<String>,
 
-    title: String,
+    title: Option<String>,
     command: String,
+    args: Vec<String>,
     height: usize,
     width: usize,
   ) -> Result<Self> {
+    let kakoune = Kakoune::new(kak_session, kak_client);
     let tempdir = TempDir::new()?;
 
     let (command, cleanup) = if let Some(kak_script) = kak_script {
       let cleanup = Cleanup::new(kak_script, tempdir.path());
-      let command = Self::wrap_command(&cleanup, &command);
+      let command = Self::wrap_command(&cleanup, &command, &args);
 
       (command, Some(cleanup))
     } else {
-      (command, None)
+      let args: Vec<String> = args.iter().map(escape::bash).collect();
+      let command = escape::bash(format!("{command} {}", args.join(" ")));
+      (format!("bash -c {command}"), None)
     };
+
+    kakoune.sync_debug(format!("command: {command}"))?;
 
     let height = height
       .checked_sub(Self::PADDING)
@@ -67,7 +73,7 @@ impl Popup {
 
     Ok(Self {
       tmux: Tmux::new(&command, height, width)?,
-      kakoune: Kakoune::new(kak_session, kak_client),
+      kakoune,
       cleanup,
 
       title,
@@ -80,12 +86,14 @@ impl Popup {
     })
   }
 
-  fn wrap_command(cleanup: &Cleanup, command: &str) -> String {
-    let command = command.replace('\'', "\\\'");
-    let stdout = &cleanup.stdout;
+  fn wrap_command(cleanup: &Cleanup, command: &str, args: &[String]) -> String {
+    let args: Vec<String> = args.iter().map(escape::bash).collect();
+    let stdout = escape::bash(cleanup.stdout.to_string_lossy());
+    let command = escape::bash(format!("{command} {} >{stdout}", args.join(" ")));
+
     // let stderr = &cleanup.stderr;
 
-    format!("bash -c '{command} >{stdout:?}'")
+    format!("bash -c {command}")
   }
 
   fn daemonize(&self) -> Result<()> {
@@ -129,22 +137,26 @@ impl Popup {
       *last = &last_line;
     }
 
-    let output = output.join("\n").replace('\'', "''");
+    let title = if let Some(title) = &self.title {
+      let title = escape::kak(format!("{}: (<c-space> to exit)", title));
+      format!("-title {title}")
+    } else {
+      String::new()
+    };
 
-    self
-      .kakoune
-      .eval(format!(
-        "info -style modal -title '{}: (<c-space> to exit popup)' '{output}'",
-        self.title
-      ))
-      .await?;
+    let output = escape::kak(output.join("\n"));
+
+    self.kakoune.eval(format!("info -style modal {title} {output}")).await?;
 
     Ok(())
   }
 
   async fn send_key(&self, key: &str) -> Result<()> {
     let mut key = match key {
+      "<plus>" => "+",
+      "<minut>" => "-",
       "<percent>" => "%",
+      "<semicolon>" => ";",
       "<up>" => "Up",
       "<down>" => "Down",
       "<left>" => "Left",
@@ -238,12 +250,13 @@ impl Popup {
       stderr,
     }) = &self.cleanup
     {
-      let stdout = tokio_fs::read_to_string(stdout).await?.trim().replace('\'', "''");
+      let kak_script = escape::kak(kak_script);
+      let stdout = escape::kak(tokio_fs::read_to_string(stdout).await?.trim());
       // let stderr = tokio_fs::read_to_string(stderr).await?.replace('\'', "''");
 
       self
         .kakoune
-        .eval(format!("popup-handle-output '{stdout}' '' %{{{kak_script}}}"))
+        .eval(format!("popup-handle-output {stdout} '' {kak_script}"))
         .await?;
     }
 

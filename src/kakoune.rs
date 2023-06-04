@@ -1,11 +1,12 @@
 use std::{
-  fmt::Display,
   io::Write,
   process::{Command, Stdio},
 };
 
 use anyhow::Result;
 use tokio::{io::AsyncWriteExt, process::Command as TokioCommand};
+
+use crate::escape;
 
 pub struct Kakoune {
   session: String,
@@ -48,33 +49,39 @@ impl Kakoune {
     Ok(())
   }
 
-  pub fn sync_debug<D: Display>(&self, message: D) -> Result<()> {
-    self.sync_command(format!("echo -debug 'kak-popup:' %§{message}§").as_bytes())?;
+  pub fn sync_debug<S: AsRef<str>>(&self, message: S) -> Result<()> {
+    let message = escape::kak(message);
+
+    self.sync_command(format!("echo -debug 'kak-popup:' {message}").as_bytes())?;
 
     Ok(())
   }
 
-  pub async fn debug<D: Display>(&self, message: D) -> Result<()> {
+  pub async fn debug<S: AsRef<str>>(&self, message: S) -> Result<()> {
+    let message = escape::kak(message);
+
     self
-      .command(format!("echo -debug 'kak-popup:' %§{message}§").as_bytes())
+      .command(format!("echo -debug 'kak-popup:' {message}").as_bytes())
       .await?;
 
     Ok(())
   }
 
-  pub async fn eval<S: Into<String>>(&self, command: S) -> Result<()> {
-    let command = command.into().replace('§', "§§");
+  pub async fn eval<S: AsRef<str>>(&self, command: S) -> Result<()> {
+    let command = escape::kak(command);
 
     self
-      .command(format!("evaluate-commands -client '{}' %§{command}§", self.client).as_bytes())
+      .command(format!("evaluate-commands -client '{}' {command}", self.client).as_bytes())
       .await?;
 
     Ok(())
   }
 
-  pub async fn exec<D: Display>(&self, keys: D) -> Result<()> {
+  pub async fn exec<S: AsRef<str>>(&self, keys: S) -> Result<()> {
+    let keys = escape::kak(keys);
+
     self
-      .command(format!("execute-keys -client '{}' %§{keys}§", self.client).as_bytes())
+      .command(format!("execute-keys -client '{}' {keys}", self.client).as_bytes())
       .await?;
 
     Ok(())

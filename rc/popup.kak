@@ -1,22 +1,35 @@
 declare-option -hidden str popup_keys_fifo
 declare-option -hidden str popup_output
 
-define-command -override popup -params 2..3 %{
+define-command -override popup -params 1.. -docstring '
+  popup [<switches>] <shell-command> <shell-arg1>...: create a modal running
+  <shell-command> in a terminal. Switches are prefixed with --.
+
+  Switches:
+    --kak-script <commands> kakoune script to execute after the shell-command
+                            exits, providing any standard output through
+                            %opt{popup_command}
+    --title <title>         the title of the modal
+    --warn                  if the exit status is non-zero display a modal
+                            along with any stderr outputted by the command
+' %{
   set-face window Information 'default,default@Default'
 
   evaluate-commands %sh{
-    kak_popup_fifo="$(
+    kak_popup_fifo=$(
       ./target/release/kak-popup \
         --kak-session "$kak_session" \
         --kak-client "$kak_client" \
-        --kak-script "$3" \
-        --title "$1" \
-        --command "$2" \
         --height "$kak_window_height" \
-        --width "$kak_window_width"
-    )"
+        --width "$kak_window_width" \
+        "$@"
+    )
 
-    printf "set-option window popup_keys_fifo '%s'\n" "$kak_popup_fifo"
+    if [ "$?" != 0 ]; then
+      printf '%s\n' "fail 'failed to start kak-popup, exited with status $?'"
+    else
+      printf '%s\n' "set-option window popup_keys_fifo '$kak_popup_fifo'"
+    fi
   }
 
   hook -group popup window WinResize .* %{
@@ -66,11 +79,11 @@ define-command -override popup-close %{
 }
 
 define-command -override popup-handle-output -params 3 -docstring "
-popup-handle-output <stdout> <stderr> <command>: handle popup output
+  popup-handle-output <stdout> <stderr> <command>: handle popup output
 
-Runs the provided <command> with the option popup_output set to <stdout>.
-If <stderr> is set, then a modal is shown with the error, and <command>
-is not executed.
+  Runs the provided <command> with the option popup_output set to <stdout>.
+  If <stderr> is set, then a modal is shown with the error, and <command>
+  is not executed.
 " %{
   evaluate-commands %sh{
     stdout="$1"
