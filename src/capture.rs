@@ -12,22 +12,21 @@ pub struct Capture {
   status: Option<PathBuf>,
   stdout: Option<PathBuf>,
   stderr: Option<PathBuf>,
-
-  // _tempdir: TempDir,
+  _tempdir: TempDir,
 }
 
 impl Capture {
   pub fn new(kak_script: Option<String>, warn: bool) -> Result<Self> {
-    let tempdir = TempDir::new()?.into_path();
+    let tempdir = TempDir::new()?;
 
     let (status, stderr) = if warn {
-      (Some(tempdir.join("status")), Some(tempdir.join("stderr")))
+      (Some(tempdir.path().join("status")), Some(tempdir.path().join("stderr")))
     } else {
       (None, None)
     };
 
     let stdout = if kak_script.is_some() {
-      Some(tempdir.join("stdout"))
+      Some(tempdir.path().join("stdout"))
     } else {
       None
     };
@@ -37,8 +36,7 @@ impl Capture {
       status,
       stdout,
       stderr,
-
-      // _tempdir: tempdir,
+      _tempdir: tempdir,
     })
   }
 
@@ -78,6 +76,10 @@ impl Capture {
 
   #[tokio::main]
   pub async fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {
+    if self.status.is_none() && self.kak_script.is_none() {
+      return Ok(())
+    }
+
     let (status, stdout, stderr) = tokio::join!(
       OptionFuture::from(self.status.as_ref().map(tokio_fs::read_to_string)),
       OptionFuture::from(self.stdout.as_ref().map(tokio_fs::read_to_string)),

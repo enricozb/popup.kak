@@ -21,7 +21,7 @@ define-command -override popup -params 1.. -docstring '
 
   evaluate-commands %sh{
     kak_popup_fifo=$(
-      ./target/release/kak-popup \
+      kak-popup \
         --kak-session "$kak_session" \
         --kak-client "$kak_client" \
         --height "$kak_window_height" \
