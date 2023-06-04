@@ -1,4 +1,4 @@
-# popups.kak
+# popup.kak
 
 Kakoune popups for running ephemeral commands.
 
