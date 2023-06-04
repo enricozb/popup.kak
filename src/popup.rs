@@ -32,22 +32,20 @@ impl Popup {
   const PADDING: usize = 16;
 
   pub fn new(
-    kak_session: String,
-    kak_client: String,
+    kakoune: Kakoune,
     kak_script: Option<String>,
 
     title: Option<String>,
-    command: String,
-    args: Vec<String>,
+    command: &str,
+    args: &[String],
     height: usize,
     width: usize,
   ) -> Result<Self> {
-    let kakoune = Kakoune::new(kak_session, kak_client);
     let tempdir = TempDir::new()?;
 
     let (command, cleanup) = if let Some(kak_script) = kak_script {
       let cleanup = Cleanup::new(kak_script, tempdir.path());
-      let command = Self::wrap_command(&cleanup, &command, &args);
+      let command = Self::wrap_command(&cleanup, command, args);
 
       (command, Some(cleanup))
     } else {
@@ -138,7 +136,7 @@ impl Popup {
     }
 
     let title = if let Some(title) = &self.title {
-      let title = escape::kak(format!("{}: (<c-space> to exit)", title));
+      let title = escape::kak(format!("{title}: (<c-space> to exit)"));
       format!("-title {title}")
     } else {
       String::new()

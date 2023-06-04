@@ -7,7 +7,7 @@ mod tmux;
 use anyhow::Result;
 use clap::Parser;
 
-use self::popup::Popup;
+use self::{kakoune::Kakoune, popup::Popup};
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -49,14 +49,14 @@ pub struct Args {
 
 fn main() -> Result<()> {
   let args = Args::parse();
+  let kakoune = Kakoune::new(args.kak_session, args.kak_client);
 
   let popup = Popup::new(
-    args.kak_session,
-    args.kak_client,
+    kakoune,
     args.kak_script,
     args.title,
-    args.command,
-    args.args,
+    &args.command,
+    &args.args,
     args.height,
     args.width,
   )?;
