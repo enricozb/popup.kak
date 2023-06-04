@@ -33,6 +33,7 @@
 - if the user hits some "cancel" key (maybe <esc>) `kak-popup` will quit.
 - some kakoune command should be run on successful command termination
 
+
 # some weird race condition
 ```fish
 tmux new-session -d -s nonsense 'bash -c $\'jq $\\\'-nonsense\\\'  2> >(tee $\\\'/tmp/.tmpBuH9LE/stderr\\\' >&2); echo $? >$\\\'/tmp/.tmpBuH9LE/status\\\'\''
@@ -43,3 +44,10 @@ This seems to create `stderr` only _sometimes_
 - main detects if we need to collect any of status, stdout, and or stderr
 - popup runs, and cleans itself up
 - afterwards, if we need to warn or need to execute some kak script, do so
+
+## TODO
+- remove shell invocations, minimize kakscript
+- switch to channels and processors
+- add cursor
+- add ability to pipe into command
+- add colors
