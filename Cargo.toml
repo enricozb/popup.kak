@@ -1,15 +1,15 @@
 [package]
 name = "kak-popup"
+description = "kakoune popups"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "CC0-1.0"
+repository = "https://github.com/enricozb/tabs.kak"
 
 [dependencies]
 anyhow = "1.0.71"
 clap = { version = "4.3.0", features = ["derive"] }
 daemonize = "0.5.0"
-indoc = "2.0.1"
 nix = "0.26.2"
 tempfile = "3.5.0"
 tokio = { version = "1.28.2", features = ["full"] }
