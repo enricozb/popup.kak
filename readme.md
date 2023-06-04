@@ -25,9 +25,9 @@ popup [<switches>] <shell-command> <shell-arg1>...: create a modal running
 and arguments can be passed as a single string or as a series of arguments,
 for example, the following two invocations are equivalent:
 
-  popup --title open ''fish -c "some fish command"''
+  popup --title open 'fish -c "some fish command"'
 
-  popup --title open -- fish -c ''some fish command''
+  popup --title open -- fish -c 'some fish command'
 
 Popups can be exited using <c-space>.
 
