@@ -18,6 +18,7 @@ define-command -override popup -params 1.. -docstring '
                             exits, providing any standard output through
                             %opt{popup_output}
     --title <title>         the title of the modal
+    --warn                  show stderr if status is non-zero
 ' %{
   popup-style-modal
 
