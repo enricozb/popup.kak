@@ -76,17 +76,13 @@ impl Capture {
 
   #[tokio::main]
   pub async fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {
-    if self.status.is_none() && self.kak_script.is_none() {
-      return Ok(())
-    }
-
     let (status, stdout, stderr) = tokio::join!(
       OptionFuture::from(self.status.as_ref().map(tokio_fs::read_to_string)),
       OptionFuture::from(self.stdout.as_ref().map(tokio_fs::read_to_string)),
       OptionFuture::from(self.stderr.as_ref().map(tokio_fs::read_to_string)),
     );
 
-    let status = escape::kak(status.transpose()?.unwrap_or_default().trim());
+    let status = escape::kak(status.transpose()?.unwrap_or("0".to_string()).trim());
     let stdout = escape::kak(stdout.transpose()?.unwrap_or_default().trim());
     let stderr = escape::kak(stderr.transpose()?.unwrap_or_default().trim());
 

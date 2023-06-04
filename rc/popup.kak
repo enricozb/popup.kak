@@ -11,6 +11,8 @@ define-command -override popup -params 1.. -docstring '
 
     popup --title open -- fish -c ''some fish command''
 
+  Popups can be exited using <c-space>.
+
   Switches:
     --kak-script <commands> kakoune script to execute after the shell-command
                             exits, providing any standard output through
@@ -90,16 +92,16 @@ define-command -override -hidden popup-handle-output -params 4 -docstring "
   is not executed.
 " %{
   evaluate-commands %sh{
-    status="$1"
+    status="${1:-0}"
     stdout="$2"
-    stderr="$3"
+    stderr="${3:-<no stderr>}"
     script="$4"
 
     printf '%s\n' "echo -debug 'popup-handle-output: status=$status'"
 
     if [ "$status" != 0 ]; then
       printf '%s\n' 'popup-style-modal'
-      printf '%s\n' "info -style modal -title 'exit status: $status (<esc> to exit)' -markup %§{red}${stderr:-<no stderr>}§"
+      printf '%s\n' "info -style modal -title 'exit status: $status (<esc> to exit)' -markup %§{red}${stderr}§"
       printf '%s\n' 'popup-error-capture-keys'
     elif [ -n "$script" ]; then
       printf '%s\n' "set-option window popup_output %§${stdout}§"
