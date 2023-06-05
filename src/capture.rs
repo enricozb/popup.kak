@@ -1,9 +1,7 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-use anyhow::Result;
-use futures::future::OptionFuture;
+use anyhow::{Context, Result};
 use tempfile::TempDir;
-use tokio::fs as tokio_fs;
 
 use crate::{args::OnErr, escape, kakoune::Kakoune};
 
@@ -96,27 +94,42 @@ impl Capture {
     format!("bash -c {command}")
   }
 
-  #[tokio::main]
-  pub async fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {
+  pub fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {
     let on_err = escape::kak(format!("{}", self.on_err));
 
-    let (status, stdout, stderr) = tokio::join!(
-      OptionFuture::from(self.status.as_ref().map(tokio_fs::read_to_string)),
-      OptionFuture::from(self.stdout.as_ref().map(tokio_fs::read_to_string)),
-      OptionFuture::from(self.stderr.as_ref().map(tokio_fs::read_to_string)),
-    );
+    let status = self
+      .status
+      .as_ref()
+      .map(fs::read_to_string)
+      .transpose()
+      .context("status")?
+      .unwrap_or_default();
 
-    let status = escape::kak(status.transpose()?.unwrap_or_default().trim());
-    let stdout = escape::kak(stdout.transpose()?.unwrap_or_default().trim());
-    let stderr = escape::kak(stderr.transpose()?.unwrap_or_default().trim());
+    let stdout = self
+      .stdout
+      .as_ref()
+      .map(fs::read_to_string)
+      .transpose()
+      .context("stdout")?
+      .unwrap_or_default();
+
+    let stderr = self
+      .stderr
+      .as_ref()
+      .map(fs::read_to_string)
+      .transpose()
+      .context("stderr")?
+      .unwrap_or_default();
+
+    let status = escape::kak(status.trim());
+    let stdout = escape::kak(stdout.trim());
+    let stderr = escape::kak(stderr.trim());
 
     let kak_script = escape::kak(self.kak_script.clone().unwrap_or_default());
 
-    kakoune
-      .eval(format!(
-        "popup-handle-output {on_err} {status} {stdout} {stderr} {kak_script}"
-      ))
-      .await?;
+    kakoune.eval(format!(
+      "popup-handle-output {on_err} {status} {stdout} {stderr} {kak_script}"
+    ))?;
 
     Ok(())
   }

@@ -1,10 +1,10 @@
 use std::{process::Command, time::SystemTime};
 
 use anyhow::{Context, Result};
-use tokio::process::Command as TokioCommand;
 
 use crate::geometry::Size;
 
+#[derive(Clone)]
 pub struct Tmux {
   pub session: String,
 }
@@ -24,7 +24,7 @@ impl Tmux {
   }
 
   fn start(&self, command: &str, height: usize, width: usize) -> Result<()> {
-    sync_command(
+    tmux_command(
       "new-session",
       [
         "-s",
@@ -42,30 +42,30 @@ impl Tmux {
   }
 
   pub fn kill(&self) -> Result<()> {
-    sync_command("kill-session", ["-t", &self.session])?;
+    tmux_command("kill-session", ["-t", &self.session])?;
 
     Ok(())
   }
 
   fn set_option(&self, option: &str, value: &str) -> Result<()> {
-    sync_command("set-option", ["-t", &self.session, option, value])?;
+    tmux_command("set-option", ["-t", &self.session, option, value])?;
 
     Ok(())
   }
 
-  pub async fn send_keys(&self, keys: &str) -> Result<()> {
-    async_command("send-keys", ["-t", &self.session, keys]).await?;
+  pub fn send_keys(&self, keys: &str) -> Result<()> {
+    tmux_command("send-keys", ["-t", &self.session, keys])?;
 
     Ok(())
   }
 
-  pub async fn capture_pane(&self) -> Result<Vec<u8>> {
+  pub fn capture_pane(&self) -> Result<Vec<u8>> {
     // TODO: add -e for escape sequences
-    async_command("capture-pane", ["-t", &self.session, "-p"]).await
+    tmux_command("capture-pane", ["-t", &self.session, "-p"])
   }
 
-  pub async fn resize_window(&self, size: Size) -> Result<()> {
-    async_command(
+  pub fn resize_window(&self, size: Size) -> Result<()> {
+    tmux_command(
       "resize-window",
       [
         "-t",
@@ -75,35 +75,17 @@ impl Tmux {
         "-y",
         &size.height.to_string(),
       ],
-    )
-    .await?;
+    )?;
 
     Ok(())
   }
 }
 
-fn sync_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
+fn tmux_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
   let output = Command::new("tmux")
     .arg(command)
     .args(args)
     .output()
-    .with_context(|| format!("tmux {command}"))?;
-
-  if !output.status.success() {
-    return Err(anyhow::anyhow!(
-      "tmux {command} exited with non-zero status: {}",
-      output.status
-    ));
-  }
-  Ok(output.stdout)
-}
-
-async fn async_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
-  let output = TokioCommand::new("tmux")
-    .arg(command)
-    .args(args)
-    .output()
-    .await
     .with_context(|| format!("tmux {command}"))?;
 
   if !output.status.success() {

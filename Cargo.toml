@@ -13,6 +13,7 @@ clap = { version = "4.3.0", features = ["derive"] }
 daemonize = "0.5.0"
 futures = "0.3.28"
 nix = "0.26.2"
+parking_lot = "0.12.1"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 strum = { version = "0.24.1", features = ["derive"] }

@@ -1,14 +1,22 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use anyhow::Result;
 use nix::{sys::stat::Mode, unistd};
 use tempfile::TempDir;
-use tokio::fs as tokio_fs;
 
 pub struct Fifo {
   pub path: PathBuf,
 
-  _tempdir: TempDir,
+  _tempdir: Option<TempDir>,
+}
+
+impl Clone for Fifo {
+  fn clone(&self) -> Self {
+    Self {
+      path: self.path.clone(),
+      _tempdir: None,
+    }
+  }
 }
 
 impl Fifo {
@@ -20,8 +28,9 @@ impl Fifo {
 
     Ok(Self {
       path,
-      _tempdir: tempdir,
-    }) }
+      _tempdir: Some(tempdir),
+    })
+  }
 
   pub fn path_str(&self) -> Result<&str> {
     self
@@ -30,11 +39,11 @@ impl Fifo {
       .ok_or_else(|| anyhow::anyhow!("path to_str: {:?}", self.path))
   }
 
-  pub async fn read(&self) -> Result<String> {
-    Ok(tokio_fs::read_to_string(&self.path).await?)
+  pub fn read(&self) -> Result<String> {
+    Ok(fs::read_to_string(&self.path)?)
   }
 
-  pub async fn write(&self, contents: impl AsRef<[u8]>) -> Result<()> {
-    Ok(tokio_fs::write(&self.path, contents).await?)
+  pub fn write(&self, contents: impl AsRef<[u8]>) -> Result<()> {
+    Ok(fs::write(&self.path, contents)?)
   }
 }

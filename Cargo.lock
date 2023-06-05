@@ -331,6 +331,7 @@ dependencies = [
  "daemonize",
  "futures",
  "nix",
+ "parking_lot",
  "serde",
  "serde_json",
  "strum",

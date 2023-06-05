@@ -5,11 +5,12 @@ mod fifo;
 mod geometry;
 mod kakoune;
 mod popup;
+mod threads;
 mod tmux;
 
 use std::fs::File;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::Daemonize;
 use tempfile::TempDir;
@@ -48,9 +49,12 @@ fn popup(args: PopupArgs) -> Result<()> {
     let capture = Capture::new(args.kak_script, args.on_err)?;
     let command = capture.command(&args.command, &args.args);
 
-    Popup::new(kakoune.clone(), args.title, args.height, args.width, &command)?.show()?;
+    Popup::new(kakoune.clone(), args.title, args.height, args.width, &command)
+      .context("Popup::new")?
+      .show()
+      .context("Popup::show")?;
 
-    capture.handle_output(&kakoune)?;
+    capture.handle_output(&kakoune).context("Capture::handle_output")?;
 
     Ok(())
   })?;
