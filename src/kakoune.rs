@@ -49,14 +49,6 @@ impl Kakoune {
     Ok(())
   }
 
-  pub fn exec(&self, keys: impl AsRef<str>) -> Result<()> {
-    let keys = escape::kak(keys);
-
-    self.command(format!("execute-keys -client '{}' {keys}", self.client).as_bytes())?;
-
-    Ok(())
-  }
-
   pub fn debug_on_error(&self, f: impl FnOnce() -> Result<()>) -> Result<()> {
     if let Err(err) = f() {
       self.debug(format!("error: {err:?}"))?;

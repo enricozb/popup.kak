@@ -60,7 +60,7 @@ impl Capture {
     }
   }
 
-  pub fn command(&self, command: &str, args: &[String]) -> String {
+  pub fn command(&self, command: &str, args: &[String], keys_fifo_path: &str) -> String {
     let save_status = self
       .status
       .as_ref()
@@ -89,7 +89,11 @@ impl Capture {
       .unwrap_or_default();
 
     let args = args.iter().map(escape::bash).collect::<Vec<String>>().join(" ");
-    let command = escape::bash(format!("{command} {args} {save_stdout} {save_stderr} {save_status}"));
+    let keys_fifo_path = escape::bash(keys_fifo_path);
+
+    let command = escape::bash(format!(
+      "{command} {args} {save_stdout} {save_stderr} {save_status}; echo quit > {keys_fifo_path}"
+    ));
 
     format!("bash -c {command}")
   }

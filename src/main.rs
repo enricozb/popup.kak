@@ -8,7 +8,7 @@ mod popup;
 mod threads;
 mod tmux;
 
-use std::fs::File;
+use std::{fs::File, thread, time::Duration, env};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -18,6 +18,7 @@ use tempfile::TempDir;
 use self::{
   args::{Args, Command, Popup as PopupArgs},
   capture::Capture,
+  fifo::Fifo,
   kakoune::Kakoune,
   popup::Popup,
 };
@@ -26,6 +27,7 @@ fn daemonize() -> Result<TempDir> {
   let tempdir = TempDir::new()?;
 
   Daemonize::new()
+    .working_directory(env::current_dir()?)
     .stdout(File::create(tempdir.path().join("stdout"))?)
     .stderr(File::create(tempdir.path().join("stderr"))?)
     .pid_file(tempdir.path().join("pid"))
@@ -35,9 +37,7 @@ fn daemonize() -> Result<TempDir> {
 }
 
 fn init() {
-  let kak_script = include_str!("../rc/popup.kak");
-
-  println!("{kak_script}");
+  println!("{kak_script}", kak_script = include_str!("../rc/popup.kak"));
 }
 
 fn popup(args: PopupArgs) -> Result<()> {
@@ -47,14 +47,25 @@ fn popup(args: PopupArgs) -> Result<()> {
 
   kakoune.debug_on_error(|| {
     let capture = Capture::new(args.kak_script, args.on_err)?;
-    let command = capture.command(&args.command, &args.args);
+    let keys_fifo = Fifo::new("keys")?;
+    let command = capture.command(&args.command, &args.args, keys_fifo.path_str()?);
 
-    Popup::new(kakoune.clone(), args.title, args.height, args.width, &command)
-      .context("Popup::new")?
-      .show()
-      .context("Popup::show")?;
+    Popup::new(
+      kakoune.clone(),
+      keys_fifo,
+      args.title,
+      args.height,
+      args.width,
+      &command,
+    )
+    .context("Popup::new")?
+    .show()
+    .context("Popup::show")?;
 
     capture.handle_output(&kakoune).context("Capture::handle_output")?;
+
+    // allow any remaining fifos to be flushed
+    thread::sleep(Duration::from_secs(1));
 
     Ok(())
   })?;

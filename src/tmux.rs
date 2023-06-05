@@ -10,29 +10,29 @@ pub struct Tmux {
 }
 
 impl Tmux {
-  pub fn new(command: &str, height: usize, width: usize) -> Result<Self> {
+  pub fn new(command: &str, size: Size) -> Result<Self> {
     let session = SystemTime::now()
       .duration_since(SystemTime::UNIX_EPOCH)?
       .as_nanos()
       .to_string();
 
     let tmux = Self { session };
-    tmux.start(command, height, width)?;
+    tmux.start(command, size)?;
     tmux.set_option("status", "off")?;
 
     Ok(tmux)
   }
 
-  fn start(&self, command: &str, height: usize, width: usize) -> Result<()> {
+  fn start(&self, command: &str, size: Size) -> Result<()> {
     tmux_command(
       "new-session",
       [
         "-s",
         &self.session,
         "-x",
-        &width.to_string(),
+        &size.width.to_string(),
         "-y",
-        &height.to_string(),
+        &size.height.to_string(),
         "-d",
         command,
       ],

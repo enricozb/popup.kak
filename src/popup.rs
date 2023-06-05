@@ -26,15 +26,24 @@ pub struct Popup {
 impl Popup {
   const PADDING: usize = 16;
 
-  pub fn new(kakoune: Kakoune, title: Option<String>, height: usize, width: usize, command: &str) -> Result<Self> {
+  pub fn new(
+    kakoune: Kakoune,
+    keys_fifo: Fifo,
+    title: Option<String>,
+    height: usize,
+    width: usize,
+    command: &str,
+  ) -> Result<Self> {
+    let size = Size { height, width }.padded(Self::PADDING)?;
+
     Ok(Self {
-      tmux: Tmux::new(command, height, width)?,
+      tmux: Tmux::new(command, size)?,
       kakoune,
 
       title,
-      size: Arc::new(Mutex::new(Size { height, width }.padded(Self::PADDING)?)),
+      size: Arc::new(Mutex::new(size)),
 
-      keys_fifo: Fifo::new("keys")?,
+      keys_fifo,
       resize_fifo: Fifo::new("resize")?,
       commands_fifo: Fifo::new("commands")?,
     })
@@ -77,34 +86,33 @@ impl Popup {
 
     let quit = Quit::new();
 
-    let keys_handle = Keys::new(
-      self.kakoune.clone(),
+    Keys::new(
+      &self.kakoune,
       self.tmux.clone(),
       self.keys_fifo.clone(),
       self.commands_fifo.clone(),
-      quit.clone(),
-    )
-    .spawn();
+    )?
+    .spawn(self.kakoune.clone(), quit.clone());
 
-    let resize_handle = Resize::new(
+    Resize::new(
       Self::PADDING,
       self.tmux.clone(),
       self.size.clone(),
       self.resize_fifo.clone(),
-      quit.clone(),
     )
-    .spawn();
+    .spawn(self.kakoune.clone(), quit.clone());
 
-    let refresh_handle = Refresh::new(
+    Refresh::new(
       self.kakoune.clone(),
       self.tmux.clone(),
       self.title.clone(),
       self.size.clone(),
-      quit.clone(),
     )
-    .spawn();
+    .spawn(self.kakoune.clone(), quit.clone());
 
+    self.kakoune.debug("gated wait")?;
     quit.wait();
+    self.kakoune.debug("done waiting")?;
 
     self.hide()?;
     self.flush_fifos();
@@ -113,17 +121,13 @@ impl Popup {
   }
 
   fn hide(&self) -> Result<()> {
-    println!("hiding...");
-
     self.kakoune.eval(
       "
-        echo -debug 'hiding!!'
         execute-keys <c-space>
         info -style modal
         popup-unstyle-modal
         unset-option window popup_keys_fifo
         remove-hooks window popup
-        echo -debug 'i left buddy'
       ",
     )?;
 
@@ -138,8 +142,6 @@ impl Popup {
     thread::spawn(move || keys_fifo.read());
     thread::spawn(move || resize_fifo.read());
     thread::spawn(move || commands_fifo.write("nop"));
-
-    thread::sleep(std::time::Duration::from_secs(1));
   }
 }
 

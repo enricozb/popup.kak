@@ -1,56 +1,43 @@
 use anyhow::Result;
 
-use super::Spawn;
-use crate::{fifo::Fifo, kakoune::Kakoune, threads::Quit, tmux::Tmux};
+use super::{Spawn, Step};
+use crate::{fifo::Fifo, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Keys {
-  kakoune: Kakoune,
   tmux: Tmux,
   keys_fifo: Fifo,
   commands_fifo: Fifo,
-  quit: Quit,
 }
 
 impl Keys {
-  pub fn new(kakoune: Kakoune, tmux: Tmux, keys_fifo: Fifo, commands_fifo: Fifo, quit: Quit) -> Self {
-    Self {
-      kakoune,
+  pub fn new(kakoune: &Kakoune, tmux: Tmux, keys_fifo: Fifo, commands_fifo: Fifo) -> Result<Self> {
+    kakoune.eval("popup-capture-keys")?;
+
+    Ok(Self {
       tmux,
       keys_fifo,
       commands_fifo,
-      quit,
-    }
+    })
   }
 }
 
 impl Spawn for Keys {
-  fn run(&self) -> Result<()> {
-    self.kakoune.eval("popup-capture-keys")?;
+  const NAME: &'static str = "keys";
 
-    while !self.quit.is_quit() {
-      println!("keys");
+  fn step(&self) -> Result<Step> {
+    let key = self.keys_fifo.read()?;
+    let key = key.trim();
 
-      let key = self.keys_fifo.read()?;
-      let key = key.trim();
-
-      if key == "<c-space>" {
-        self.quit.quit();
-        return Ok(());
-      }
-
-      // TODO: trigger a refresh
-      self.tmux.send_keys(&tmux_key(key))?;
-
-      self.commands_fifo.write("popup-capture-keys")?;
+    if key == "<c-space>" {
+      println!("keys quitting!");
+      return Ok(Step::Quit);
     }
 
-    Ok(())
-  }
-}
+    // TODO: trigger a refresh
+    self.tmux.send_keys(&tmux_key(key))?;
+    self.commands_fifo.write("popup-capture-keys")?;
 
-impl Drop for Keys {
-  fn drop(&mut self) {
-    self.quit.quit();
+    Ok(Step::Next)
   }
 }
 

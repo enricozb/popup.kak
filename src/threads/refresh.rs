@@ -3,31 +3,33 @@ use std::{sync::Arc, thread, time::Duration};
 use anyhow::Result;
 use parking_lot::Mutex;
 
-use super::Spawn;
-use crate::{escape, geometry::Size, kakoune::Kakoune, threads::Quit, tmux::Tmux};
+use super::{Spawn, Step};
+use crate::{escape, geometry::Size, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Refresh {
   kakoune: Kakoune,
   tmux: Tmux,
   title: Option<String>,
   size: Arc<Mutex<Size>>,
-  quit: Quit,
 }
 
 impl Refresh {
   const RATE: Duration = Duration::from_millis(100);
 
-  pub fn new(kakoune: Kakoune, tmux: Tmux, title: Option<String>, size: Arc<Mutex<Size>>, quit: Quit) -> Self {
+  pub fn new(kakoune: Kakoune, tmux: Tmux, title: Option<String>, size: Arc<Mutex<Size>>) -> Self {
     Self {
       kakoune,
       tmux,
       title,
       size,
-      quit,
     }
   }
+}
 
-  fn refresh(&self) -> Result<()> {
+impl Spawn for Refresh {
+  const NAME: &'static str = "refresh";
+
+  fn step(&self) -> Result<Step> {
     let content = self.tmux.capture_pane()?;
     let width = self.size.lock().width;
 
@@ -54,26 +56,8 @@ impl Refresh {
 
     self.kakoune.eval(format!("info -style modal {title} {output}"))?;
 
-    Ok(())
-  }
-}
+    thread::sleep(Self::RATE);
 
-impl Drop for Refresh {
-  fn drop(&mut self) {
-    self.quit.quit();
-  }
-}
-
-impl Spawn for Refresh {
-  fn run(&self) -> Result<()> {
-    while !self.quit.is_quit() {
-      println!("refresh");
-
-      self.refresh()?;
-
-      thread::sleep(Self::RATE);
-    }
-
-    Ok(())
+    Ok(Step::Next)
   }
 }
