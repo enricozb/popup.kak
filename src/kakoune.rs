@@ -11,11 +11,12 @@ use crate::escape;
 pub struct Kakoune {
   session: String,
   client: String,
+  debug: bool,
 }
 
 impl Kakoune {
-  pub fn new(session: String, client: String) -> Self {
-    Self { session, client }
+  pub fn new(session: String, client: String, debug: bool) -> Self {
+    Self { session, client, debug }
   }
 
   fn command(&self, command: impl AsRef<[u8]>) -> Result<()> {
@@ -34,6 +35,10 @@ impl Kakoune {
   }
 
   pub fn debug(&self, message: impl AsRef<str>) -> Result<()> {
+    if !self.debug {
+      return Ok(());
+    }
+
     let message = escape::kak(message);
 
     self.command(format!("echo -debug 'kak-popup:' {message}").as_bytes())?;

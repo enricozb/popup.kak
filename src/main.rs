@@ -8,7 +8,7 @@ mod popup;
 mod threads;
 mod tmux;
 
-use std::{fs::File, thread, time::Duration, env};
+use std::{env, fs::File, thread, time::Duration};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -43,7 +43,7 @@ fn init() {
 fn popup(args: PopupArgs) -> Result<()> {
   let _: Option<TempDir> = if args.daemonize { Some(daemonize()?) } else { None };
 
-  let kakoune = Kakoune::new(args.kak_session, args.kak_client);
+  let kakoune = Kakoune::new(args.kak_session, args.kak_client, args.debug);
 
   kakoune.debug_on_error(|| {
     let capture = Capture::new(args.kak_script, args.on_err)?;

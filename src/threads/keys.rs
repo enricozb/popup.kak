@@ -29,7 +29,6 @@ impl Spawn for Keys {
     let key = key.trim();
 
     if key == "<c-space>" {
-      println!("keys quitting!");
       return Ok(Step::Quit);
     }
 

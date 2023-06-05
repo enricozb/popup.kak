@@ -19,6 +19,10 @@ pub struct Popup {
   #[arg(short, long)]
   pub daemonize: bool,
 
+  /// Send debug output to kakoune.
+  #[arg(long)]
+  pub debug: bool,
+
   /// The kakoune session to send commands to.
   #[arg(long)]
   pub kak_session: String,
