@@ -1,3 +1,5 @@
+use std::sync::mpsc::Sender;
+
 use anyhow::Result;
 
 use super::{Spawn, Step};
@@ -7,16 +9,18 @@ pub struct Keys {
   tmux: Tmux,
   keys_fifo: Fifo,
   commands_fifo: Fifo,
+  refresh: Sender<()>,
 }
 
 impl Keys {
-  pub fn new(kakoune: &Kakoune, tmux: Tmux, keys_fifo: Fifo, commands_fifo: Fifo) -> Result<Self> {
+  pub fn new(kakoune: &Kakoune, tmux: Tmux, keys_fifo: Fifo, commands_fifo: Fifo, refresh: Sender<()>) -> Result<Self> {
     kakoune.eval("popup-capture-keys")?;
 
     Ok(Self {
       tmux,
       keys_fifo,
       commands_fifo,
+      refresh,
     })
   }
 }
@@ -32,9 +36,9 @@ impl Spawn for Keys {
       return Ok(Step::Quit);
     }
 
-    // TODO: trigger a refresh
     self.tmux.send_keys(&tmux_key(key))?;
     self.commands_fifo.write("popup-capture-keys")?;
+    self.refresh.send(())?;
 
     Ok(Step::Next)
   }

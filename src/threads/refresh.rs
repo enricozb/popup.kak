@@ -1,4 +1,11 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::{
+  sync::{
+    mpsc::{self, Receiver, Sender},
+    Arc,
+  },
+  thread::{self, JoinHandle},
+  time::Duration,
+};
 
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -7,21 +14,36 @@ use super::{Spawn, Step};
 use crate::{escape, geometry::Size, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Refresh {
+  pub sender: Sender<()>,
+  receiver: Receiver<()>,
+
   kakoune: Kakoune,
   tmux: Tmux,
   title: Option<String>,
   size: Arc<Mutex<Size>>,
+
+  _events: JoinHandle<Result<()>>,
 }
 
 impl Refresh {
   const RATE: Duration = Duration::from_millis(100);
 
   pub fn new(kakoune: Kakoune, tmux: Tmux, title: Option<String>, size: Arc<Mutex<Size>>) -> Self {
+    let (sender, receiver) = mpsc::channel();
+
     Self {
+      sender: sender.clone(),
+      receiver,
+
       kakoune,
       tmux,
       title,
       size,
+
+      _events: thread::spawn(move || loop {
+        sender.send(())?;
+        thread::sleep(Self::RATE);
+      }),
     }
   }
 }
@@ -30,6 +52,8 @@ impl Spawn for Refresh {
   const NAME: &'static str = "refresh";
 
   fn step(&self) -> Result<Step> {
+    self.receiver.recv()?;
+
     let content = self.tmux.capture_pane()?;
     let width = self.size.lock().width;
 
@@ -55,8 +79,6 @@ impl Spawn for Refresh {
     let output = escape::kak(output.join("\n"));
 
     self.kakoune.eval(format!("info -style modal {title} {output}"))?;
-
-    thread::sleep(Self::RATE);
 
     Ok(Step::Next)
   }

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{mpsc::Sender, Arc};
 
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -11,15 +11,17 @@ pub struct Resize {
   tmux: Tmux,
   size: Arc<Mutex<Size>>,
   resize_fifo: Fifo,
+  refresh: Sender<()>,
 }
 
 impl Resize {
-  pub fn new(padding: usize, tmux: Tmux, size: Arc<Mutex<Size>>, resize_fifo: Fifo) -> Self {
+  pub fn new(padding: usize, tmux: Tmux, size: Arc<Mutex<Size>>, resize_fifo: Fifo, refresh: Sender<()>) -> Self {
     Self {
       padding,
       tmux,
       size,
       resize_fifo,
+      refresh,
     }
   }
 }
@@ -33,8 +35,8 @@ impl Spawn for Resize {
 
     *self.size.lock() = new_size;
 
-    // TODO: trigger a refresh
     self.tmux.resize_window(new_size)?;
+    self.refresh.send(())?;
 
     Ok(Step::Next)
   }

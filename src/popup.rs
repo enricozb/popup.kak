@@ -86,32 +86,37 @@ impl Popup {
 
     let quit = Quit::new();
 
-    Keys::new(
-      &self.kakoune,
-      self.tmux.clone(),
-      self.keys_fifo.clone(),
-      self.commands_fifo.clone(),
-    )?
-    .spawn(self.kakoune.clone(), quit.clone());
-
-    Resize::new(
-      Self::PADDING,
-      self.tmux.clone(),
-      self.size.clone(),
-      self.resize_fifo.clone(),
-    )
-    .spawn(self.kakoune.clone(), quit.clone());
-
-    Refresh::new(
+    let refresh = Refresh::new(
       self.kakoune.clone(),
       self.tmux.clone(),
       self.title.clone(),
       self.size.clone(),
-    )
-    .spawn(self.kakoune.clone(), quit.clone());
+    );
 
-    self.kakoune.debug("gated wait")?;
+    let keys = Keys::new(
+      &self.kakoune,
+      self.tmux.clone(),
+      self.keys_fifo.clone(),
+      self.commands_fifo.clone(),
+      refresh.sender.clone(),
+    )?;
+
+    let resize = Resize::new(
+      Self::PADDING,
+      self.tmux.clone(),
+      self.size.clone(),
+      self.resize_fifo.clone(),
+      refresh.sender.clone(),
+    );
+
+    keys.spawn(self.kakoune.clone(), quit.clone());
+    resize.spawn(self.kakoune.clone(), quit.clone());
+    refresh.spawn(self.kakoune.clone(), quit.clone());
+
+    self.kakoune.debug("waiting for quit")?;
+
     quit.wait();
+
     self.kakoune.debug("done waiting")?;
 
     self.hide()?;
