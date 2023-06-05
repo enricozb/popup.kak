@@ -46,7 +46,6 @@ This seems to create `stderr` only _sometimes_
 - afterwards, if we need to warn or need to execute some kak script, do so
 
 ## TODO
-- remove shell invocations, minimize kakscript
 - switch to channels and processors
 - add cursor
 - add ability to pipe into command

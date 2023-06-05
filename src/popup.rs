@@ -54,7 +54,7 @@ impl Popup {
       "
         set-option window popup_keys_fifo {keys_fifo}
         set-option window popup_resize_fifo {resize_fifo}
-        set-option window popup_commands_fifo {commands_fifo}
+        set-option window popup_commands_fifo '%file{{{commands_fifo}}}'
       ",
       keys_fifo = self.keys_fifo.path_str()?,
       resize_fifo = self.resize_fifo.path_str()?,

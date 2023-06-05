@@ -45,7 +45,7 @@ define-command -override popup -params 1.. -docstring '
 define-command -override -hidden popup-capture-keys %{
   on-key %{
     echo -to-file %opt{popup_keys_fifo} %val{key}
-    evaluate-commands "evaluate-commands %%file{%opt{popup_commands_fifo}}"
+    evaluate-commands %opt{popup_commands_fifo}
   }
 }
 
