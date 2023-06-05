@@ -46,7 +46,8 @@ This seems to create `stderr` only _sometimes_
 - afterwards, if we need to warn or need to execute some kak script, do so
 
 ## TODO
-- switch to channels and processors
-- add cursor
-- add ability to pipe into command
-- add colors
+- [-] switch to channels and processors
+- [x] add ability to pipe into command
+- [ ] switch to tmux socket
+- [ ] add cursor
+- [ ] add colors

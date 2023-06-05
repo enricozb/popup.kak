@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+
 use clap::{Args as SubcommandArgs, Parser, Subcommand, ValueEnum};
 use strum::Display;
 
@@ -43,6 +45,10 @@ pub struct Popup {
   #[arg(long)]
   pub width: usize,
 
+  /// Input to pass as stdin to COMMAND.
+  #[arg(long)]
+  pub input: Option<OsString>,
+
   /// What to do on non-zero exit status.
   #[arg(long, default_value_t)]
   pub on_err: OnErr,
@@ -54,7 +60,7 @@ pub struct Popup {
   /// The command to execute within the popup.
   pub command: String,
 
-  /// Any arguments to the command.
+  /// Any arguments to COMMAND.
   pub args: Vec<String>,
 }
 

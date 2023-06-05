@@ -1,9 +1,9 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, thread};
 
 use anyhow::{Context, Result};
 use tempfile::TempDir;
 
-use crate::{args::OnErr, escape, kakoune::Kakoune};
+use crate::{args::OnErr, escape, fifo::Fifo, kakoune::Kakoune};
 
 pub struct Capture {
   kak_script: Option<String>,
@@ -60,7 +60,23 @@ impl Capture {
     }
   }
 
-  pub fn command(&self, command: &str, args: &[String], keys_fifo_path: &str) -> String {
+  pub fn command(
+    &self,
+    command: &str,
+    args: &[String],
+    input: Option<Vec<u8>>,
+    keys_fifo_path: &str,
+  ) -> Result<String> {
+    let input = if let Some(input) = input {
+      let input_fifo = Fifo::new("input")?;
+      let input_fifo_path = input_fifo.path_str()?.to_string();
+      thread::spawn(move || input_fifo.write(input));
+
+      format!("<{input}", input = escape::bash(input_fifo_path))
+    } else {
+      String::new()
+    };
+
     let save_status = self
       .status
       .as_ref()
@@ -92,10 +108,10 @@ impl Capture {
     let keys_fifo_path = escape::bash(keys_fifo_path);
 
     let command = escape::bash(format!(
-      "{command} {args} {save_stdout} {save_stderr} {save_status}; echo quit > {keys_fifo_path}"
+      "{command} {input} {args} {save_stdout} {save_stderr} {save_status}; echo quit > {keys_fifo_path}"
     ));
 
-    format!("bash -c {command}")
+    Ok(format!("bash -c {command}"))
   }
 
   pub fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {
