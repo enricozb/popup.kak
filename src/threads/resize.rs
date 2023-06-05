@@ -35,10 +35,14 @@ impl Resize {
 impl Spawn for Resize {
   fn run(&self) -> Result<()> {
     while !self.quit.is_quit() {
+      println!("resize");
+
       let new_size: Size = serde_json::from_str(&self.resize_fifo.read()?)?;
       let new_size = new_size.padded(self.padding)?;
 
       *self.size.lock() = new_size;
+
+      // TODO: trigger a refresh
       self.tmux.resize_window(new_size)?;
     }
 

@@ -67,6 +67,8 @@ impl Drop for Refresh {
 impl Spawn for Refresh {
   fn run(&self) -> Result<()> {
     while !self.quit.is_quit() {
+      println!("refresh");
+
       self.refresh()?;
 
       thread::sleep(Self::RATE);

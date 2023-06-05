@@ -107,26 +107,30 @@ impl Popup {
     quit.wait();
 
     self.hide()?;
-    self.flush_fifos()?;
+    self.flush_fifos();
 
     Ok(())
   }
 
   fn hide(&self) -> Result<()> {
+    println!("hiding...");
+
     self.kakoune.eval(
       "
+        echo -debug 'hiding!!'
         execute-keys <c-space>
         info -style modal
         popup-unstyle-modal
         unset-option window popup_keys_fifo
         remove-hooks window popup
+        echo -debug 'i left buddy'
       ",
     )?;
 
     Ok(())
   }
 
-  fn flush_fifos(&self) -> Result<()> {
+  fn flush_fifos(&self) {
     let keys_fifo = self.keys_fifo.clone();
     let resize_fifo = self.resize_fifo.clone();
     let commands_fifo = self.commands_fifo.clone();
@@ -136,8 +140,6 @@ impl Popup {
     thread::spawn(move || commands_fifo.write("nop"));
 
     thread::sleep(std::time::Duration::from_secs(1));
-
-    Ok(())
   }
 }
 

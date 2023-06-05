@@ -28,6 +28,8 @@ impl Spawn for Keys {
     self.kakoune.eval("popup-capture-keys")?;
 
     while !self.quit.is_quit() {
+      println!("keys");
+
       let key = self.keys_fifo.read()?;
       let key = key.trim();
 
@@ -36,8 +38,8 @@ impl Spawn for Keys {
         return Ok(());
       }
 
+      // TODO: trigger a refresh
       self.tmux.send_keys(&tmux_key(key))?;
-      // self.refresh().await?;
 
       self.commands_fifo.write("popup-capture-keys")?;
     }
