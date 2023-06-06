@@ -1,4 +1,5 @@
 mod args;
+mod buffer;
 mod capture;
 mod escape;
 mod fifo;

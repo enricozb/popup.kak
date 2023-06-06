@@ -1,8 +1,15 @@
 use std::{process::Command, time::SystemTime};
 
 use anyhow::{Context, Result};
+use serde::Deserialize;
 
-use crate::geometry::Size;
+use crate::geometry::{Point, Size};
+
+#[derive(Deserialize)]
+pub struct DisplayInfo {
+  pub size: Size,
+  pub cursor: Point,
+}
 
 #[derive(Clone)]
 pub struct Tmux {
@@ -64,14 +71,23 @@ impl Tmux {
     tmux_command("capture-pane", ["-t", &self.session, "-p"])
   }
 
-  pub fn display_dimensions(&self) -> Result<Size> {
+  pub fn display_info(&self) -> Result<DisplayInfo> {
     let content = tmux_command(
       "display",
       [
         "-t",
         &self.session,
         "-p",
-        r#"{"width": #{pane_width}, "height": #{pane_height}}"#,
+        r#"{
+          "size": {
+            "width": #{pane_width},
+            "height": #{pane_height}
+          },
+          "cursor": {
+            "x": #{cursor_x},
+            "y": #{cursor_y}
+          }
+        }"#,
       ],
     )?;
 

@@ -7,7 +7,7 @@ use std::{
 use anyhow::Result;
 
 use super::{Spawn, Step};
-use crate::{escape, kakoune::Kakoune, tmux::Tmux};
+use crate::{buffer::Buffer, escape, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Refresh {
   pub sender: Sender<()>,
@@ -48,31 +48,19 @@ impl Spawn for Refresh {
   fn step(&self) -> Result<Step> {
     self.receiver.recv()?;
 
-    let content = self.tmux.capture_pane()?;
-    let width = self.tmux.display_dimensions()?.width;
-
-    // strip the trailing newline
-    let output = String::from_utf8_lossy(&content[..content.len() - 1]);
-
-    let mut output: Vec<&str> = output.rsplitn(2, '\n').collect();
-    output.reverse();
-
-    let last_line;
-    if let Some(last) = output.last_mut() {
-      last_line = format!("{last:<width$}");
-      *last = &last_line;
-    }
+    let buffer = Buffer::new(self.tmux.display_info()?, self.tmux.capture_pane()?);
+    let markup = escape::kak(buffer.markup()?);
 
     let title = if let Some(title) = &self.title {
-      let title = escape::kak(format!("{title}: (<c-space> to exit)"));
-      format!("-title {title}")
+      format!("{title}: (<c-space> to exit)")
     } else {
       String::new()
     };
+    let title = escape::kak(title);
 
-    let output = escape::kak(output.join("\n"));
-
-    self.kakoune.eval(format!("info -style modal {title} {output}"))?;
+    self
+      .kakoune
+      .eval(format!("info -style modal -title {title} -markup {markup}"))?;
 
     Ok(Step::Next)
   }

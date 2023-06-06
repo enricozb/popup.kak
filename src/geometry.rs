@@ -2,6 +2,12 @@ use anyhow::Result;
 use serde::Deserialize;
 
 #[derive(Clone, Copy, Deserialize)]
+pub struct Point {
+  pub x: usize,
+  pub y: usize,
+}
+
+#[derive(Clone, Copy, Deserialize)]
 pub struct Size {
   pub height: usize,
   pub width: usize,
