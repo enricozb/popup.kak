@@ -64,6 +64,20 @@ impl Tmux {
     tmux_command("capture-pane", ["-t", &self.session, "-p"])
   }
 
+  pub fn display_dimensions(&self) -> Result<Size> {
+    let content = tmux_command(
+      "display",
+      [
+        "-t",
+        &self.session,
+        "-p",
+        r#"{"width": #{pane_width}, "height": #{pane_height}}"#,
+      ],
+    )?;
+
+    Ok(serde_json::from_slice(&content)?)
+  }
+
   pub fn resize_window(&self, size: Size) -> Result<()> {
     tmux_command(
       "resize-window",

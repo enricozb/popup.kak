@@ -1,7 +1,6 @@
-use std::{sync::Arc, thread};
+use std::thread;
 
 use anyhow::Result;
-use parking_lot::Mutex;
 
 use crate::{
   fifo::Fifo,
@@ -16,7 +15,6 @@ pub struct Popup {
   kakoune: Kakoune,
 
   title: Option<String>,
-  size: Arc<Mutex<Size>>,
 
   keys_fifo: Fifo,
   resize_fifo: Fifo,
@@ -41,7 +39,6 @@ impl Popup {
       kakoune,
 
       title,
-      size: Arc::new(Mutex::new(size)),
 
       keys_fifo,
       resize_fifo: Fifo::new("resize")?,
@@ -86,12 +83,7 @@ impl Popup {
 
     let quit = Quit::new();
 
-    let refresh = Refresh::new(
-      self.kakoune.clone(),
-      self.tmux.clone(),
-      self.title.clone(),
-      self.size.clone(),
-    );
+    let refresh = Refresh::new(self.kakoune.clone(), self.tmux.clone(), self.title.clone());
 
     let keys = Keys::new(
       &self.kakoune,
@@ -104,7 +96,6 @@ impl Popup {
     let resize = Resize::new(
       Self::PADDING,
       self.tmux.clone(),
-      self.size.clone(),
       self.resize_fifo.clone(),
       refresh.sender.clone(),
     );

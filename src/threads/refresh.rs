@@ -1,17 +1,13 @@
 use std::{
-  sync::{
-    mpsc::{self, Receiver, Sender},
-    Arc,
-  },
+  sync::mpsc::{self, Receiver, Sender},
   thread::{self, JoinHandle},
   time::Duration,
 };
 
 use anyhow::Result;
-use parking_lot::Mutex;
 
 use super::{Spawn, Step};
-use crate::{escape, geometry::Size, kakoune::Kakoune, tmux::Tmux};
+use crate::{escape, kakoune::Kakoune, tmux::Tmux};
 
 pub struct Refresh {
   pub sender: Sender<()>,
@@ -20,7 +16,6 @@ pub struct Refresh {
   kakoune: Kakoune,
   tmux: Tmux,
   title: Option<String>,
-  size: Arc<Mutex<Size>>,
 
   _events: JoinHandle<Result<()>>,
 }
@@ -28,7 +23,7 @@ pub struct Refresh {
 impl Refresh {
   const RATE: Duration = Duration::from_millis(100);
 
-  pub fn new(kakoune: Kakoune, tmux: Tmux, title: Option<String>, size: Arc<Mutex<Size>>) -> Self {
+  pub fn new(kakoune: Kakoune, tmux: Tmux, title: Option<String>) -> Self {
     let (sender, receiver) = mpsc::channel();
 
     Self {
@@ -38,7 +33,6 @@ impl Refresh {
       kakoune,
       tmux,
       title,
-      size,
 
       _events: thread::spawn(move || loop {
         sender.send(())?;
@@ -55,7 +49,7 @@ impl Spawn for Refresh {
     self.receiver.recv()?;
 
     let content = self.tmux.capture_pane()?;
-    let width = self.size.lock().width;
+    let width = self.tmux.display_dimensions()?.width;
 
     // strip the trailing newline
     let output = String::from_utf8_lossy(&content[..content.len() - 1]);
