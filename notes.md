@@ -48,6 +48,6 @@ This seems to create `stderr` only _sometimes_
 ## TODO
 - [-] switch to channels and processors
 - [x] add ability to pipe into command
+- [x] add cursor
 - [ ] switch to tmux socket
-- [ ] add cursor
 - [ ] add colors
