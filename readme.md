@@ -25,9 +25,9 @@ popup [<switches>] <shell-command> <shell-arg1>...: create a modal running
 and arguments can be passed as a single string or as a series of arguments,
 for example, the following two invocations are equivalent:
 
-  popup --title open 'fish -c "some fish command"'
+  popup --title open %{fish -c "some fish command"}
 
-  popup --title open -- fish -c 'some fish command'
+  popup --title open -- fish -c "some fish command"
 
 Popups can be exited using <c-space>.
 
@@ -36,6 +36,7 @@ Switches:
                           exits, providing any standard output through
                           %opt{popup_output}
   --title <title>         the title of the modal
+  --input <input>         input passed as the stdin of <shell-command>
   --on-err <on-err>       what to do on non-zero exit status
             warn          show a modal with stderr
             dismiss       dismiss modal without running KAK_SCRIPT
