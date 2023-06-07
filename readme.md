@@ -3,7 +3,7 @@
 Kakoune popups for running ephemeral commands.
 
 ## Demo
-[![asciicast](https://asciinema.org/a/589470.svg)][1]
+[![asciicast](https://asciinema.org/a/590218.svg)][1]
 
 ## Installation
 ### Prerequisites
@@ -54,4 +54,4 @@ popup fish
 popup --title open --kak-script %{edit %opt{popup_output}} -- fzf
 ```
 
-[1]: https://asciinema.org/a/589470
+[1]: https://asciinema.org/a/590218

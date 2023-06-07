@@ -21,6 +21,7 @@
 
 
 # flow
+
 - kakoune starts `kak-popup` with command and fifo information
 - `kak-popup` starts tmux server and daemonizes itself
   - on cleanup tmux server must be killed
@@ -34,20 +35,14 @@
 - some kakoune command should be run on successful command termination
 
 
-# some weird race condition
-```fish
-tmux new-session -d -s nonsense 'bash -c $\'jq $\\\'-nonsense\\\'  2> >(tee $\\\'/tmp/.tmpBuH9LE/stderr\\\' >&2); echo $? >$\\\'/tmp/.tmpBuH9LE/status\\\'\''
-```
-This seems to create `stderr` only _sometimes_
-
-# output flow
-- main detects if we need to collect any of status, stdout, and or stderr
-- popup runs, and cleans itself up
-- afterwards, if we need to warn or need to execute some kak script, do so
-
 ## TODO
+
 - [-] switch to channels and processors
 - [x] add ability to pipe into command
 - [x] add cursor
+- [x] add colors
+  - there's a small bug where (i think) if the cursor is on the last character
+    an ending escape sequence isn't sent by tmux, so attributes like underline
+    continue for the entirety of the modal (or until the next escape sequence,
+    which could be on the following line).
 - [ ] switch to tmux socket
-- [ ] add colors
