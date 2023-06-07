@@ -68,7 +68,7 @@ impl Tmux {
 
   pub fn capture_pane(&self) -> Result<Vec<u8>> {
     // TODO: add -e for escape sequences
-    tmux_command("capture-pane", ["-t", &self.session, "-p"])
+    tmux_command("capture-pane", ["-t", &self.session, "-p", "-e"])
   }
 
   pub fn display_info(&self) -> Result<DisplayInfo> {

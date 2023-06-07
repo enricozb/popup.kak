@@ -1,7 +1,11 @@
+mod ansi;
+mod style;
+
 use std::{iter, str};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
+use self::{ansi::EscapeStack, style::Style};
 use crate::tmux::DisplayInfo;
 
 pub struct Buffer {
@@ -16,11 +20,6 @@ impl Buffer {
 
     for byte in data {
       if byte == b'\n' {
-        if line.len() < info.size.width {
-          let padding = info.size.width - line.len();
-          line.extend(iter::repeat(b' ').take(padding));
-        }
-
         lines.push(line);
         line = Vec::new();
       } else {
@@ -37,9 +36,26 @@ impl Buffer {
 
   pub fn markup(self) -> Result<String> {
     let mut markup = String::new();
+    let mut esc = EscapeStack::new();
+    let mut style: Style = Style::default();
 
     for (y, line) in self.data.into_iter().enumerate() {
-      for (x, c) in str::from_utf8(&line)?.chars().enumerate() {
+      let mut x: usize = 0;
+      let mut chars = str::from_utf8(&line)?.chars().chain(iter::repeat(' '));
+
+      while x < self.info.size.width {
+        let c = chars.next().ok_or(anyhow::anyhow!("next"))?;
+
+        let (skip, new_style) = esc.skip(c).context("skip")?;
+        if let Some(new_style) = new_style {
+          style.merge(new_style);
+          markup.push_str(&style.markup());
+        }
+
+        if skip {
+          continue;
+        }
+
         let at_cursor = x == self.info.cursor.x && y == self.info.cursor.y;
 
         if at_cursor {
@@ -53,8 +69,10 @@ impl Buffer {
         }
 
         if at_cursor {
-          markup.push_str("{Default}");
+          markup.push_str(&style.markup());
         }
+
+        x += 1;
       }
 
       markup.push('\n');

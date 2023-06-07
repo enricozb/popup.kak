@@ -60,12 +60,15 @@ fn tmux_key(key: &str) -> String {
     "<s-tab>" => "BTab",
     "<space>" => "Space",
     "<backspace>" => "BSpace",
+    "<del>" => "DC",
     key => key,
   };
 
   // TODO: handle <a-*> <s-*> and combinations <c-a-w>
   if key.starts_with("<c-") {
     format!("C-{}", &key[3..key.len() - 1])
+  } else if key.starts_with("<a-") {
+    format!("M-{}", &key[3..key.len() - 1])
   } else {
     key.to_string()
   }
