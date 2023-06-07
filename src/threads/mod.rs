@@ -26,10 +26,18 @@ pub trait Spawn {
   {
     thread::spawn(move || {
       while !quit.is_quit() {
-        if let Err(err) = self.step() {
-          let _ignore = kakoune.debug(format!("{}::step: {err:?}", Self::NAME));
+        match self.step() {
+          Ok(Step::Next) => (),
 
-          quit.quit();
+          Ok(Step::Quit) => {
+            let _ignore = kakoune.debug(format!("{}::step: quitting", Self::NAME));
+            quit.quit();
+          }
+
+          Err(err) => {
+            let _ignore = kakoune.debug(format!("{}::step: {err:?}", Self::NAME));
+            quit.quit();
+          }
         }
       }
     })

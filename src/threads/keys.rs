@@ -13,8 +13,11 @@ pub struct Keys {
 }
 
 impl Keys {
+  pub const QUIT_KEY: &'static str = "<c-space>";
+  const CAPTURE_KEYS: &'static str = "popup-capture-keys";
+
   pub fn new(kakoune: &Kakoune, tmux: Tmux, keys_fifo: Fifo, commands_fifo: Fifo, refresh: Sender<()>) -> Result<Self> {
-    kakoune.eval("popup-capture-keys")?;
+    kakoune.eval(Self::CAPTURE_KEYS)?;
 
     Ok(Self {
       tmux,
@@ -32,44 +35,92 @@ impl Spawn for Keys {
     let key = self.keys_fifo.read()?;
     let key = key.trim();
 
-    if key == "<c-space>" {
+    if key == Self::QUIT_KEY {
       return Ok(Step::Quit);
     }
 
-    self.tmux.send_keys(&tmux_key(key))?;
-    self.commands_fifo.write("popup-capture-keys")?;
+    self.tmux.send_keys(&Key::from(key).into_tmux())?;
+    self.commands_fifo.write(Self::CAPTURE_KEYS)?;
     self.refresh.send(())?;
 
     Ok(Step::Next)
   }
 }
 
-fn tmux_key(key: &str) -> String {
-  let key = match key {
-    "<plus>" => "+",
-    "<minus>" => "-",
-    "<percent>" => "%",
-    "<semicolon>" => ";",
-    "<up>" => "Up",
-    "<down>" => "Down",
-    "<left>" => "Left",
-    "<right>" => "Right",
-    "<esc>" => "Escape",
-    "<ret>" => "Enter",
-    "<tab>" => "Tab",
-    "<s-tab>" => "BTab",
-    "<space>" => "Space",
-    "<backspace>" => "BSpace",
-    "<del>" => "DC",
-    key => key,
-  };
+struct Key<'a> {
+  key: &'a str,
 
-  // TODO: handle <a-*> <s-*> and combinations <c-a-w>
-  if key.starts_with("<c-") {
-    format!("C-{}", &key[3..key.len() - 1])
-  } else if key.starts_with("<a-") {
-    format!("M-{}", &key[3..key.len() - 1])
-  } else {
-    key.to_string()
+  alt: bool,
+  ctrl: bool,
+  shift: bool,
+}
+
+impl<'a> Key<'a> {
+  fn into_tmux(self) -> String {
+    // special key
+    if self.key == "tab" && self.shift {
+      return "BTab".to_string();
+    }
+
+    let mut tmux_key = String::new();
+    if self.alt {
+      tmux_key.push_str("M-");
+    }
+    if self.ctrl {
+      tmux_key.push_str("C-");
+    }
+    if self.shift {
+      tmux_key.push_str("S-");
+    }
+
+    tmux_key.push_str(match self.key {
+      "lt" => "<",
+      "gt" => ">",
+      "plus" => "+",
+      "minus" => "-",
+      "percent" => "%",
+      "semicolon" => "\\;",
+      "up" => "Up",
+      "down" => "Down",
+      "left" => "Left",
+      "right" => "Right",
+      "esc" => "Escape",
+      "ret" => "Enter",
+      "tab" => "Tab",
+      "space" => "Space",
+      "backspace" => "BSpace",
+      "del" => "DC",
+      key => key,
+    });
+
+    tmux_key
+  }
+}
+
+impl<'a> From<&'a str> for Key<'a> {
+  fn from(key: &'a str) -> Self {
+    let mut key = if key.starts_with('<') {
+      &key[1..key.len() - 1]
+    } else {
+      key
+    };
+
+    let mut alt = false;
+    let mut ctrl = false;
+    let mut shift = false;
+
+    while key.len() >= 3 {
+      match &key[..2] {
+        "a-" => alt = true,
+        "c-" => ctrl = true,
+        "s-" => shift = true,
+
+        _ => break,
+      }
+
+      key = &key[2..];
+    }
+
+    Self { key, alt, ctrl, shift }
   }
 }

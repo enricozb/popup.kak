@@ -39,6 +39,8 @@ impl Kakoune {
       return Ok(());
     }
 
+    println!("kakoune::debug: {}", message.as_ref());
+
     let message = escape::kak(message);
 
     self.command(format!("echo -debug 'kak-popup:' {message}").as_bytes())?;

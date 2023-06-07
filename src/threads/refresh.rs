@@ -15,7 +15,7 @@ pub struct Refresh {
 
   kakoune: Kakoune,
   tmux: Tmux,
-  title: Option<String>,
+  title: String,
 
   _events: JoinHandle<Result<()>>,
 }
@@ -32,7 +32,7 @@ impl Refresh {
 
       kakoune,
       tmux,
-      title,
+      title: title.unwrap_or_default(),
 
       _events: thread::spawn(move || loop {
         sender.send(())?;
@@ -50,13 +50,7 @@ impl Spawn for Refresh {
 
     let buffer = Buffer::new(self.tmux.display_info()?, self.tmux.capture_pane()?);
     let markup = escape::kak(buffer.markup()?);
-
-    let title = if let Some(title) = &self.title {
-      format!("{title}: (<c-space> to exit)")
-    } else {
-      String::new()
-    };
-    let title = escape::kak(title);
+    let title = escape::kak(&self.title);
 
     self
       .kakoune

@@ -117,15 +117,16 @@ impl Popup {
   }
 
   fn hide(&self) -> Result<()> {
-    self.kakoune.eval(
+    self.kakoune.eval(format!(
       "
-        execute-keys <c-space>
+        execute-keys {}
         info -style modal
         popup-unstyle-modal
         unset-option window popup_keys_fifo
         remove-hooks window popup
       ",
-    )?;
+      Keys::QUIT_KEY
+    ))?;
 
     Ok(())
   }

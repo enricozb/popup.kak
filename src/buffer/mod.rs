@@ -1,7 +1,7 @@
 mod ansi;
 mod style;
 
-use std::{iter, str};
+use std::str;
 
 use anyhow::Result;
 
@@ -41,17 +41,25 @@ impl Buffer {
 
     for (y, line) in self.data.into_iter().enumerate() {
       let mut x: usize = 0;
-      let mut chars = str::from_utf8(&line)?.chars().chain(iter::repeat(' '));
+      let mut fill = false;
+      let mut chars = str::from_utf8(&line)?.chars();
 
       while x < self.info.size.width {
-        let c = chars.next().ok_or(anyhow::anyhow!("next"))?;
+        let c = if fill {
+          ' '
+        } else if let Some(c) = chars.next() {
+          c
+        } else {
+          markup.push_str(&Style::default().markup());
+          fill = true;
+          ' '
+        };
 
         let (skip, new_style) = esc.skip(c);
         if let Some(new_style) = new_style {
           style.merge(&new_style);
           markup.push_str(&style.markup());
         }
-
         if skip {
           continue;
         }
@@ -68,11 +76,18 @@ impl Buffer {
           c => markup.push(c),
         }
 
-        if at_cursor {
+        if at_cursor && fill {
+          markup.push_str(&Style::default().markup());
+        } else if at_cursor {
           markup.push_str(&style.markup());
         }
 
         x += 1;
+      }
+
+      // continue any styling preceding the inserted spaces
+      if fill {
+        markup.push_str(&style.markup());
       }
 
       markup.push('\n');
