@@ -28,7 +28,7 @@ define-command -override popup -params 1.. -docstring '
 
 ' %{
   evaluate-commands %sh{
-    ./target/release/kak-popup \
+    kak-popup \
       popup \
       --daemonize \
       --kak-session "$kak_session" \
