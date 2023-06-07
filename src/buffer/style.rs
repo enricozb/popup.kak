@@ -20,7 +20,7 @@ pub enum Color {
   BrightCyan,
   BrightWhite,
 
-  RGB(u8, u8, u8),
+  Rgb(u8, u8, u8),
 
   Default,
 }
@@ -37,13 +37,13 @@ impl Color {
         let g = ((val - 16) % 36 / 6) * 51;
         let b = ((val - 16) % 6) * 51;
 
-        Color::RGB(r, g, b)
+        Color::Rgb(r, g, b)
       }
 
       232..=255 => {
         let gray = (val - 232) * 10;
 
-        Color::RGB(gray, gray, gray)
+        Color::Rgb(gray, gray, gray)
       }
     }
   }
@@ -69,7 +69,7 @@ impl Color {
       Self::BrightWhite => "bright-white".to_string(),
 
       // TODO: need to convert to padded hex
-      Self::RGB(r, g, b) => format!("rgb:{r:02X}{g:02X}{b:02X}"),
+      Self::Rgb(r, g, b) => format!("rgb:{r:02X}{g:02X}{b:02X}"),
 
       Self::Default => "default".to_string(),
     }
@@ -114,7 +114,6 @@ pub struct Style {
   underline: Option<bool>,
   blink: Option<bool>,
   reverse: Option<bool>,
-  invisible: Option<bool>,
   strike: Option<bool>,
 }
 
@@ -123,19 +122,34 @@ impl Style {
     let foreground = self.foreground.as_ref().map(Color::markup).unwrap_or_default();
     let background = self.background.as_ref().map(Color::markup).unwrap_or_default();
 
-    let b = if self.bold.unwrap_or_default() { "b" } else { "" };
-    let d = if self.dim.unwrap_or_default() { "d" } else { "" };
-    let i = if self.italic.unwrap_or_default() { "i" } else { "" };
-    let u = if self.underline.unwrap_or_default() { "u" } else { "" };
-    let l = if self.blink.unwrap_or_default() { "B" } else { "" };
-    let r = if self.reverse.unwrap_or_default() { "r" } else { "" };
-    // invisible intentionally left out as kakoune doesn't support it
-    let s = if self.strike.unwrap_or_default() { "s" } else { "" };
+    let mut attributes = String::new();
 
-    format!("{{{foreground},{background}+{b}{d}{i}{u}{l}{r}{s}@Default}}")
+    if self.bold.unwrap_or_default() {
+      attributes.push('b');
+    };
+    if self.dim.unwrap_or_default() {
+      attributes.push('d');
+    };
+    if self.italic.unwrap_or_default() {
+      attributes.push('i');
+    };
+    if self.underline.unwrap_or_default() {
+      attributes.push('u');
+    };
+    if self.blink.unwrap_or_default() {
+      attributes.push('B');
+    };
+    if self.reverse.unwrap_or_default() {
+      attributes.push('r');
+    };
+    if self.strike.unwrap_or_default() {
+      attributes.push('s');
+    };
+
+    format!("{{{foreground},{background}+{attributes}@Default}}")
   }
 
-  pub fn merge(&mut self, other: Self) {
+  pub fn merge(&mut self, other: &Self) {
     *self = Self {
       foreground: other.foreground.or(self.foreground),
       background: other.background.or(self.background),
@@ -145,7 +159,6 @@ impl Style {
       underline: other.underline.or(self.underline),
       blink: other.blink.or(self.blink),
       reverse: other.reverse.or(self.reverse),
-      invisible: other.invisible.or(self.invisible),
       strike: other.strike.or(self.strike),
     }
   }
@@ -160,7 +173,6 @@ impl Style {
       underline: Some(false),
       blink: Some(false),
       reverse: Some(false),
-      invisible: Some(false),
       strike: Some(false),
     }
   }
@@ -199,7 +211,6 @@ impl Style {
         4 => style.underline = Some(true),
         5 => style.blink = Some(true),
         7 => style.reverse = Some(true),
-        8 => style.invisible = Some(true),
         9 => style.strike = Some(true),
 
         22 => {
@@ -210,11 +221,10 @@ impl Style {
         24 => style.underline = Some(false),
         25 => style.blink = Some(false),
         27 => style.reverse = Some(false),
-        28 => style.invisible = Some(false),
         29 => style.strike = Some(false),
 
         38 if params[i + 1] == 2 => {
-          style.foreground = Some(Color::RGB(params[i + 2], params[i + 3], params[i + 4]));
+          style.foreground = Some(Color::Rgb(params[i + 2], params[i + 3], params[i + 4]));
           i += 5;
           continue;
         }
@@ -226,7 +236,7 @@ impl Style {
         }
 
         48 if params[i + 1] == 2 => {
-          style.background = Some(Color::RGB(params[i + 2], params[i + 3], params[i + 4]));
+          style.background = Some(Color::Rgb(params[i + 2], params[i + 3], params[i + 4]));
           i += 5;
           continue;
         }
@@ -238,16 +248,19 @@ impl Style {
         }
 
         38 | 48 => {
-          return Err(anyhow::anyhow!("unknown param {param} in sequence: {params:?}"));
+          return Err(anyhow::anyhow!(
+            "unknown color mode {} in sequence: {params:?}",
+            params[i + 1]
+          ));
         }
 
         30..=39 | 90..=97 => style.foreground = Some(Color::from(param)),
         40..=49 | 100..=107 => style.background = Some(Color::from(param - 10)),
 
-        param => return Err(anyhow::anyhow!("unknown param {param} in sequence: {params:?}")),
+        param => println!("unknown param {param} in sequence: {params:?}, skipping"),
       }
 
-      i += 1
+      i += 1;
     }
 
     Ok(style)

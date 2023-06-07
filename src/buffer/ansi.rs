@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 use super::style::Style;
 
 #[derive(PartialEq, Eq)]
@@ -22,19 +20,17 @@ impl EscapeStack {
     }
   }
 
-  pub fn skip(&mut self, c: char) -> Result<(bool, Option<Style>)> {
-    let (new_state, skip) = match (&self.state, c) {
+  pub fn skip(&mut self, c: char) -> (bool, Option<Style>) {
+    let skip: bool;
+
+    (self.state, skip) = match (&self.state, c) {
       (State::Wait, '\u{1b}') => (State::Esc, true),
-      (State::Wait, _) => (State::Wait, false),
-
       (State::Esc, '[') => (State::Sequence, true),
-      (State::Esc, _) => (State::Wait, false),
-
       (State::Sequence, 'm') => (State::Wait, true),
+
+      (State::Wait | State::Esc, _) => (State::Wait, false),
       (State::Sequence, _) => (State::Sequence, true),
     };
-
-    self.state = new_state;
 
     if skip {
       self.sequence.push(c);
@@ -51,9 +47,9 @@ impl EscapeStack {
 
       self.sequence.clear();
 
-      Ok((skip, style))
+      (skip, style)
     } else {
-      Ok((skip, None))
+      (skip, None)
     }
   }
 }

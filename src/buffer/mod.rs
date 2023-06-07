@@ -3,7 +3,7 @@ mod style;
 
 use std::{iter, str};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use self::{ansi::EscapeStack, style::Style};
 use crate::tmux::DisplayInfo;
@@ -46,9 +46,9 @@ impl Buffer {
       while x < self.info.size.width {
         let c = chars.next().ok_or(anyhow::anyhow!("next"))?;
 
-        let (skip, new_style) = esc.skip(c).context("skip")?;
+        let (skip, new_style) = esc.skip(c);
         if let Some(new_style) = new_style {
-          style.merge(new_style);
+          style.merge(&new_style);
           markup.push_str(&style.markup());
         }
 
