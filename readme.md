@@ -7,7 +7,7 @@ Kakoune popups for running ephemeral commands.
 
 ## Installation
 ### Prerequisites
-`tmux` must be installed.
+`tmux` must be installed. It is not required that kakoune runs _under_ `tmux`, just that it's installed.
 
 ### Recommended
 1. Install the binary with `cargo install kak-popup`.

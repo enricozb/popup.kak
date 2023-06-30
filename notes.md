@@ -46,3 +46,4 @@
     continue for the entirety of the modal (or until the next escape sequence,
     which could be on the following line).
 - [ ] switch to tmux socket
+- [ ] add persistence feature, where the popup can be dismissed and re-attached
