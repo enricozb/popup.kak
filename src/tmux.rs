@@ -120,9 +120,11 @@ fn tmux_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8
 
   if !output.status.success() {
     return Err(anyhow::anyhow!(
-      "tmux {command} exited with non-zero status: {}",
-      output.status
+      "tmux {command} exited with non-zero status: {}, err: {}",
+      output.status,
+      String::from_utf8_lossy(&output.stderr),
     ));
   }
+
   Ok(output.stdout)
 }

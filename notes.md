@@ -2,11 +2,14 @@
 
 - `tmux new-session -d -s <session_name> -x <width> -y <height>`
   - create a new session (with bash)
+
 - `tmux send-keys -t <session_name> "your_command" Enter`
   - run the provided command
+
 - `tmux capture-pane -e -p -t <session_name>`
   - `-e`: include escape sequences
   - `-p`: send to stdout
+
 - `tmux display -p -t <session_name> '#{pane_width} #{pane_height} #{cursor_y} #{cursor_x}'`
   - get the panes current size, and cursor position
   - `-p`: send to stdout
