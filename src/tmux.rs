@@ -72,24 +72,20 @@ impl Tmux {
   }
 
   pub fn display_info(&self) -> Result<DisplayInfo> {
-    let content = tmux_command(
-      "display",
-      [
-        "-t",
-        &self.session,
-        "-p",
-        r#"{
-          "size": {
-            "width": #{pane_width},
-            "height": #{pane_height}
-          },
-          "cursor": {
-            "x": #{cursor_x},
-            "y": #{cursor_y}
-          }
-        }"#,
-      ],
-    )?;
+    const FORMAT_STR: &str = r#"{
+      "size": {
+        "width": #{pane_width},
+        "height": #{pane_height}
+      },
+      "cursor": {
+        "x": #{cursor_x},
+        "y": #{cursor_y}
+      }
+    }"#;
+
+    // OpenSUSE's tmux replaces newlines with _ so we remove the newlines
+    let format_str = FORMAT_STR.replace('\n', "");
+    let content = tmux_command("display", ["-t", &self.session, "-p", &format_str])?;
 
     Ok(serde_json::from_slice(&content)?)
   }
