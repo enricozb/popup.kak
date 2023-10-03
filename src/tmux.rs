@@ -67,7 +67,6 @@ impl Tmux {
   }
 
   pub fn capture_pane(&self) -> Result<Vec<u8>> {
-    // TODO: add -e for escape sequences
     tmux_command("capture-pane", ["-t", &self.session, "-p", "-e"])
   }
 
@@ -84,10 +83,10 @@ impl Tmux {
     }"#;
 
     // OpenSUSE's tmux replaces newlines with _ so we remove the newlines
-    let format_str = FORMAT_STR.replace('\n', "");
+    let format_str = FORMAT_STR.replace('\n', " ");
     let content = tmux_command("display", ["-t", &self.session, "-p", &format_str])?;
 
-    Ok(serde_json::from_slice(&content)?)
+    serde_json::from_slice(&content).with_context(|| format!("Failed to parse: {}", String::from_utf8_lossy(&content)))
   }
 
   pub fn resize_window(&self, size: Size) -> Result<()> {
