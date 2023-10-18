@@ -27,6 +27,12 @@ impl Tmux {
     tmux.start(command, size)?;
     tmux.set_option("status", "off")?;
 
+    // if an attached tmux session is running, tmux does not respect
+    // the `-x`/`-y` size options when creating a new session.
+    // NOTE: this could also be done by having a `size` member to this
+    // struct, and then comparing it to what we get back during `Self::display`.
+    tmux.resize_window(size)?;
+
     Ok(tmux)
   }
 
