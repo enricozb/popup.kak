@@ -30,7 +30,7 @@ impl Spawn for Resize {
     let new_size: Size = serde_json::from_str(&self.resize_fifo.read()?)?;
     let new_size = new_size.padded(self.padding)?;
 
-    self.tmux.resize_window(new_size)?;
+    self.tmux.set_size(new_size)?;
     self.refresh.send(())?;
 
     Ok(Step::Next)

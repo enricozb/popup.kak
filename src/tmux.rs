@@ -1,6 +1,7 @@
-use std::{process::Command, time::SystemTime};
+use std::{process::Command, sync::Arc, time::SystemTime};
 
 use anyhow::{Context, Result};
+use parking_lot::Mutex;
 use serde::Deserialize;
 
 use crate::geometry::{Point, Size};
@@ -14,6 +15,8 @@ pub struct DisplayInfo {
 #[derive(Clone)]
 pub struct Tmux {
   pub session: String,
+
+  size: Arc<Mutex<Size>>,
 }
 
 impl Tmux {
@@ -23,15 +26,12 @@ impl Tmux {
       .as_nanos()
       .to_string();
 
-    let tmux = Self { session };
+    let tmux = Self {
+      session,
+      size: Arc::new(Mutex::new(size)),
+    };
     tmux.start(command, size)?;
     tmux.set_option("status", "off")?;
-
-    // if an attached tmux session is running, tmux does not respect
-    // the `-x`/`-y` size options when creating a new session.
-    // NOTE: this could also be done by having a `size` member to this
-    // struct, and then comparing it to what we get back during `Self::display`.
-    tmux.resize_window(size)?;
 
     Ok(tmux)
   }
@@ -92,10 +92,25 @@ impl Tmux {
     let format_str = FORMAT_STR.replace('\n', " ");
     let content = tmux_command("display", ["-t", &self.session, "-p", &format_str])?;
 
-    serde_json::from_slice(&content).with_context(|| format!("Failed to parse: {}", String::from_utf8_lossy(&content)))
+    let display_info: DisplayInfo = serde_json::from_slice(&content)
+      .with_context(|| format!("Failed to parse: {}", String::from_utf8_lossy(&content)))?;
+
+    let current_size = *self.size.lock();
+
+    if display_info.size != current_size {
+      self.resize_window(current_size)?;
+    }
+
+    Ok(display_info)
   }
 
-  pub fn resize_window(&self, size: Size) -> Result<()> {
+  pub fn set_size(&self, size: Size) -> Result<()> {
+    *self.size.lock() = size;
+
+    self.resize_window(size)
+  }
+
+  fn resize_window(&self, size: Size) -> Result<()> {
     tmux_command(
       "resize-window",
       [

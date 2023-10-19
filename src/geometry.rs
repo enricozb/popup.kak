@@ -7,7 +7,7 @@ pub struct Point {
   pub y: usize,
 }
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 pub struct Size {
   pub height: usize,
   pub width: usize,
