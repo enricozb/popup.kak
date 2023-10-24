@@ -23,7 +23,7 @@ define-command -override popup -params 1.. -docstring '
     --input <input>         input passed as the stdin of <shell-command>
     --on-err <on-err>       what to do on non-zero exit status
               warn          show a modal with stderr
-              dismiss       dismiss modal without running KAK_SCRIPT
+              dismiss       dismiss modal without running KAK_SCRIPT (default)
               ignore        ignore status and always run KAK_SCRIPT
 
 ' %{
