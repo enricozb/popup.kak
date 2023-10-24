@@ -1,4 +1,4 @@
-use std::{process::Command, sync::Arc, time::SystemTime};
+use std::{ffi::OsStr, process::Command, sync::Arc, time::SystemTime};
 
 use anyhow::{Context, Result};
 use parking_lot::Mutex;
@@ -20,7 +20,7 @@ pub struct Tmux {
 }
 
 impl Tmux {
-  pub fn new(command: &str, size: Size) -> Result<Self> {
+  pub fn new(command: &[String], size: Size) -> Result<Self> {
     let session = SystemTime::now()
       .duration_since(SystemTime::UNIX_EPOCH)?
       .as_nanos()
@@ -37,22 +37,26 @@ impl Tmux {
     Ok(tmux)
   }
 
-  fn start(&self, command: &str, size: Size) -> Result<()> {
-    tmux_command(
-      "start",
-      [
-        ";",
-        "new-session",
-        "-s",
-        &self.session,
-        "-x",
-        &size.width.to_string(),
-        "-y",
-        &size.height.to_string(),
-        "-d",
-        command,
-      ],
-    )?;
+  fn start(&self, command: &[String], size: Size) -> Result<()> {
+    let width = size.width.to_string();
+    let height = size.height.to_string();
+
+    let mut args = vec![
+      ";",
+      "new-session",
+      "-s",
+      &self.session,
+      "-x",
+      &width,
+      "-y",
+      &height,
+      "-d",
+      "--",
+    ];
+
+    args.extend(command.iter().map(String::as_str));
+
+    tmux_command("start", &args)?;
 
     Ok(())
   }
@@ -130,7 +134,11 @@ impl Tmux {
   }
 }
 
-fn tmux_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
+fn tmux_command<I, S>(command: &str, args: I) -> Result<Vec<u8>>
+where
+  I: IntoIterator<Item = S>,
+  S: AsRef<OsStr>,
+{
   let output = Command::new("tmux")
     .args(["-L", "kak-popup"])
     .arg(command)

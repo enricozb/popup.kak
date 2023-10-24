@@ -60,12 +60,7 @@ impl Capture {
     }
   }
 
-  pub fn command(
-    &self,
-    command: &str,
-    args: &[String],
-    input: Option<Vec<u8>>,
-  ) -> Result<String> {
+  pub fn command(&self, command: &str, args: &[String], input: Option<Vec<u8>>) -> Result<Vec<String>> {
     let input = if let Some(input) = input {
       let input_fifo = Fifo::new("input")?;
       let input_fifo_path = input_fifo.path_str()?.to_string();
@@ -105,11 +100,9 @@ impl Capture {
 
     let args = args.iter().map(escape::bash).collect::<Vec<String>>().join(" ");
 
-    let command = escape::bash(format!(
-      "{command} {input} {args} {save_stdout} {save_stderr} {save_status}"
-    ));
+    let command = format!("{command} {input} {args} {save_stdout} {save_stderr} {save_status}");
 
-    Ok(format!("bash -c {command}"))
+    Ok(vec!["bash".into(), "-c".into(), command])
   }
 
   pub fn handle_output(&self, kakoune: &Kakoune) -> Result<()> {

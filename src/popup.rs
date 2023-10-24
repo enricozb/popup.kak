@@ -30,7 +30,7 @@ impl Popup {
     title: Option<String>,
     height: usize,
     width: usize,
-    command: &str,
+    command: &[String],
   ) -> Result<Self> {
     let size = Size { height, width }.padded(Self::PADDING)?;
 
