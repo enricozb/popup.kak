@@ -30,6 +30,7 @@ impl Tmux {
       session,
       size: Arc::new(Mutex::new(size)),
     };
+
     tmux.start(command, size)?;
     tmux.set_option("status", "off")?;
 
@@ -38,8 +39,10 @@ impl Tmux {
 
   fn start(&self, command: &str, size: Size) -> Result<()> {
     tmux_command(
-      "new-session",
+      "start",
       [
+        ";",
+        "new-session",
         "-s",
         &self.session,
         "-x",
@@ -129,6 +132,7 @@ impl Tmux {
 
 fn tmux_command<const N: usize>(command: &str, args: [&str; N]) -> Result<Vec<u8>> {
   let output = Command::new("tmux")
+    .args(["-L", "kak-popup"])
     .arg(command)
     .args(args)
     .output()

@@ -49,12 +49,7 @@ fn popup(args: PopupArgs) -> Result<()> {
   kakoune.debug_on_error(|| {
     let capture = Capture::new(args.kak_script, args.on_err)?;
     let keys_fifo = Fifo::new("keys")?;
-    let command = capture.command(
-      &args.command,
-      &args.args,
-      args.input.map(OsStringExt::into_vec),
-      keys_fifo.path_str()?,
-    )?;
+    let command = capture.command(&args.command, &args.args, args.input.map(OsStringExt::into_vec))?;
 
     Popup::new(
       kakoune.clone(),

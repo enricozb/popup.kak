@@ -65,7 +65,6 @@ impl Capture {
     command: &str,
     args: &[String],
     input: Option<Vec<u8>>,
-    keys_fifo_path: &str,
   ) -> Result<String> {
     let input = if let Some(input) = input {
       let input_fifo = Fifo::new("input")?;
@@ -105,10 +104,9 @@ impl Capture {
       .unwrap_or_default();
 
     let args = args.iter().map(escape::bash).collect::<Vec<String>>().join(" ");
-    let keys_fifo_path = escape::bash(keys_fifo_path);
 
     let command = escape::bash(format!(
-      "{command} {input} {args} {save_stdout} {save_stderr} {save_status}; echo quit > {keys_fifo_path}"
+      "{command} {input} {args} {save_stdout} {save_stderr} {save_status}"
     ));
 
     Ok(format!("bash -c {command}"))
