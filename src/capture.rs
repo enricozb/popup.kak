@@ -71,14 +71,7 @@ impl Capture {
       String::new()
     };
 
-    let save_status = self
-      .status
-      .as_ref()
-      .map(|status| {
-        let status = escape::bash(status.to_string_lossy());
-        format!("; echo $? >{status}")
-      })
-      .unwrap_or_default();
+    let args = args.iter().map(escape::bash).collect::<Vec<String>>().join(" ");
 
     let save_stdout = self
       .stdout
@@ -98,9 +91,16 @@ impl Capture {
       })
       .unwrap_or_default();
 
-    let args = args.iter().map(escape::bash).collect::<Vec<String>>().join(" ");
+    let save_status = self
+      .status
+      .as_ref()
+      .map(|status| {
+        let status = escape::bash(status.to_string_lossy());
+        format!("; echo $? >{status}")
+      })
+      .unwrap_or_default();
 
-    let command = format!("{command} {input} {args} {save_stdout} {save_stderr} {save_status}");
+    let command = vec![command, &input, &args, &save_stdout, &save_stderr, &save_status].join(" ");
 
     Ok(vec!["bash".into(), "-c".into(), command])
   }
