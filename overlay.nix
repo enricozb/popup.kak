@@ -1,3 +1,1 @@
-self: super: {
-  kak-popup = super.callPackage ./default.nix {};
-}
+self: super: { kak-popup = super.callPackage ./default.nix { }; }
