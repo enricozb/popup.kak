@@ -1,6 +1,6 @@
 # popup.kak
 
-Kakoune popups for running ephemeral commands.
+Terminals inside kakoune.
 
 ## Demo
 [![asciicast](https://asciinema.org/a/590218.svg)][1]
