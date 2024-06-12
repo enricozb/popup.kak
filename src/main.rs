@@ -57,6 +57,7 @@ fn popup(args: PopupArgs) -> Result<()> {
       args.title,
       args.height,
       args.width,
+      args.padding,
       &command,
     )
     .context("Popup::new")?
