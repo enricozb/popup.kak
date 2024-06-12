@@ -25,6 +25,7 @@ define-command -override popup -params 1.. -docstring '
               warn          show a modal with stderr
               dismiss       dismiss modal without running KAK_SCRIPT (default)
               ignore        ignore status and always run KAK_SCRIPT
+    --padding <size>        use <size> as popup window padding
 
 ' %{
   evaluate-commands %sh{
