@@ -90,6 +90,8 @@ impl<'a> Key<'a> {
       "space" => "Space",
       "backspace" => "BSpace",
       "del" => "DC",
+      "quote" => "'",
+      "dquote" => "\"",
       key => key,
     });
 
