@@ -39,7 +39,9 @@ impl Spawn for Keys {
       return Ok(Step::Quit);
     }
 
-    self.tmux.send_keys(&Key::from(key).into_tmux())?;
+    if ! key.starts_with("<mouse:") {
+      self.tmux.send_keys(&Key::from(key).into_tmux())?;
+    }
     self.commands_fifo.write(Self::CAPTURE_KEYS)?;
     self.refresh.send(())?;
 
