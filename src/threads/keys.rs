@@ -72,12 +72,16 @@ struct Key<'a> {
 impl<'a> Key<'a> {
   fn unpad_coords(&mut self, padding: usize) {
     match self.event {
-      Event::Scroll { ref mut coords, .. } | Event::Mouse { ref mut coords, .. } => {
+      Event::Scroll {
+        coords: Some(ref mut coords),
+        ..
+      }
+      | Event::Mouse { ref mut coords, .. } => {
         coords.x = coords.x.saturating_sub(padding / 2).max(1);
         coords.y = coords.y.saturating_sub(padding / 2).max(1);
       }
 
-      Event::Named(_) => (),
+      _ => (),
     }
   }
 }
@@ -88,12 +92,17 @@ impl<'a> From<Key<'a>> for TmuxKey {
 
     match event {
       Event::Scroll { amount, coords } => {
-        let up: usize = (amount > 0).into();
+        let up = amount > 0;
         // 64 is the scroll
-        let modifiers = 64 | usize::from(modifiers) | up;
-        let Point { x: column, y: line } = coords;
+        if let Some(Point { x: column, y: line }) = coords {
+          let modifiers = 64 | usize::from(modifiers) | usize::from(up);
 
-        TmuxKey::Esc(format!("<{modifiers};{column};{line}M"))
+          TmuxKey::Esc(format!("<{modifiers};{column};{line}M"))
+        } else if up {
+          TmuxKey::Key("Up".to_string())
+        } else {
+          TmuxKey::Key("Down".to_string())
+        }
       }
 
       Event::Mouse { button, action, coords } => {
@@ -195,7 +204,7 @@ impl<'a> TryFrom<&'a str> for Key<'a> {
 
       Event::Scroll {
         amount: parts[1].parse()?,
-        coords: parts[2].parse()?,
+        coords: parts.get(2).and_then(|c| c.parse().ok()),
       }
     } else {
       Event::Named(key)
@@ -210,7 +219,7 @@ enum Event<'a> {
 
   Scroll {
     amount: i32,
-    coords: Point,
+    coords: Option<Point>,
   },
 
   Mouse {
