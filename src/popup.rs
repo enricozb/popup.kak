@@ -87,6 +87,7 @@ impl Popup {
 
     let keys = Keys::new(
       &self.kakoune,
+      Self::PADDING,
       self.tmux.clone(),
       self.keys_fifo.clone(),
       self.commands_fifo.clone(),

@@ -4,7 +4,7 @@ description = "kakoune popups"
 version = "0.5.1"
 edition = "2021"
 license = "CC0-1.0"
-repository = "https://github.com/enricozb/tabs.kak"
+repository = "https://github.com/enricozb/popup.kak"
 readme = "readme.md"
 
 [dependencies]

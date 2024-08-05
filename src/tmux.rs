@@ -12,6 +12,11 @@ pub struct DisplayInfo {
   pub cursor: Point,
 }
 
+pub enum Key {
+  Key(String),
+  Esc(String),
+}
+
 #[derive(Clone)]
 pub struct Tmux {
   pub session: String,
@@ -73,8 +78,11 @@ impl Tmux {
     Ok(())
   }
 
-  pub fn send_keys(&self, keys: &str) -> Result<()> {
-    tmux_command("send-keys", ["-t", &self.session, keys])?;
+  pub fn send_keys(&self, keys: Key) -> Result<()> {
+    match keys {
+      Key::Key(s) => tmux_command("send-keys", ["-t", &self.session, &s])?,
+      Key::Esc(s) => tmux_command("send-keys", ["-t", &self.session, "-l", &format!("\x1b[{s}")])?,
+    };
 
     Ok(())
   }
