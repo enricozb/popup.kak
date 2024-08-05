@@ -2,7 +2,7 @@
 
 pkgs.rustPlatform.buildRustPackage rec {
   pname = "kak-popup";
-  version = "0.5.1";
+  version = "0.6.1-beta";
   src = ./.;
 
   cargoLock = { lockFile = ./Cargo.lock; };
