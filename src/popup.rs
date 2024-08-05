@@ -15,6 +15,7 @@ pub struct Popup {
   kakoune: Kakoune,
 
   title: Option<String>,
+  padding: usize,
 
   keys_fifo: Fifo,
   resize_fifo: Fifo,
@@ -22,23 +23,23 @@ pub struct Popup {
 }
 
 impl Popup {
-  const PADDING: usize = 16;
-
   pub fn new(
     kakoune: Kakoune,
     keys_fifo: Fifo,
     title: Option<String>,
     height: usize,
     width: usize,
+    padding: usize,
     command: &[String],
   ) -> Result<Self> {
-    let size = Size { height, width }.padded(Self::PADDING)?;
+    let size = Size { height, width }.padded(padding)?;
 
     Ok(Self {
       tmux: Tmux::new(command, size)?,
       kakoune,
 
       title,
+      padding,
 
       keys_fifo,
       resize_fifo: Fifo::new("resize")?,
@@ -87,7 +88,7 @@ impl Popup {
 
     let keys = Keys::new(
       &self.kakoune,
-      Self::PADDING,
+      self.padding,
       self.tmux.clone(),
       self.keys_fifo.clone(),
       self.commands_fifo.clone(),
@@ -95,7 +96,7 @@ impl Popup {
     )?;
 
     let resize = Resize::new(
-      Self::PADDING,
+      self.padding,
       self.tmux.clone(),
       self.resize_fifo.clone(),
       refresh.sender.clone(),

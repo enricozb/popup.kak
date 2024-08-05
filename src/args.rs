@@ -45,6 +45,10 @@ pub struct Popup {
   #[arg(long)]
   pub width: usize,
 
+  /// amount of padding around the height and width of the popup.
+  #[arg(long, default_value_t = 16)]
+  pub padding: usize,
+
   /// Input to pass as stdin to COMMAND.
   #[arg(long)]
   pub input: Option<OsString>,
