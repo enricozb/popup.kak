@@ -41,7 +41,7 @@ Switches:
             warn          show a modal with stderr
             dismiss       dismiss modal without running KAK_SCRIPT
             ignore        ignore status and always run KAK_SCRIPT
-  --padding               the amount of padding around the height and width
+  --padding <int>         the amount of padding around the height and width
                           of the popup. defaults to 16.
 ```
 
