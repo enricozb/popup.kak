@@ -138,6 +138,8 @@ impl<'a> From<Key<'a>> for TmuxKey {
           "minus" => "-",
           "percent" => "%",
           "semicolon" => "\\;",
+          "quote" => "'",
+          "dquote" => "\"",
           "up" => "Up",
           "down" => "Down",
           "left" => "Left",
