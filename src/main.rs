@@ -80,7 +80,14 @@ fn main() -> Result<()> {
 
   match args.command {
     Command::Init => init(),
-    Command::Popup(args) => popup(args)?,
+    Command::Popup(mut args) => {
+      // A heuristic to ignore padding if it's too large relative to height or width
+      if 3 * args.padding >= args.height || 3 * args.padding >= args.width {
+        args.padding = 4
+      }
+
+      popup(args)?;
+    }
   }
 
   Ok(())
