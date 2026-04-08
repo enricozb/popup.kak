@@ -15,6 +15,22 @@ pub enum OnErr {
   Ignore,
 }
 
+#[derive(Parser)]
+#[command(author, version)]
+pub struct Args {
+  #[command(subcommand)]
+  pub command: Command,
+}
+
+#[derive(Subcommand)]
+pub enum Command {
+  /// Outputs kak script to be used prior to any call to `popup`.
+  Init,
+
+  /// Starts a popup server instance.
+  Popup(Popup),
+}
+
 #[derive(SubcommandArgs)]
 pub struct Popup {
   /// Daemonizes the process.
@@ -66,20 +82,4 @@ pub struct Popup {
 
   /// Any arguments to COMMAND.
   pub args: Vec<String>,
-}
-
-#[derive(Subcommand)]
-pub enum Command {
-  /// Outputs kak script to be used prior to any call to `popup`.
-  Init,
-
-  /// Starts a popup server instance.
-  Popup(Popup),
-}
-
-#[derive(Parser)]
-#[command(author, version)]
-pub struct Args {
-  #[command(subcommand)]
-  pub command: Command,
 }

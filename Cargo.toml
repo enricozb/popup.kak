@@ -9,7 +9,7 @@ readme = "readme.md"
 
 [dependencies]
 anyhow = "1.0.71"
-clap = { version = "4.3.0", features = ["derive"] }
+clap = { version = "4.6", features = ["derive"] }
 daemonize = "0.5.0"
 futures = "0.3.28"
 nix = "0.26.2"
