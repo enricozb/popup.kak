@@ -56,7 +56,10 @@ impl Spawn for Keys {
     let mut key = Key::try_from(key)?;
     key.unpad_coords(self.padding);
 
-    self.tmux.send_keys(key.into())?;
+    if let Some(key) = key.into_tmux(self.tmux.mouse_support()?) {
+      self.tmux.send_keys(key)?;
+    }
+
     self.commands_fifo.write(Self::CAPTURE_KEYS)?;
     self.refresh.send(())?;
 
@@ -86,26 +89,38 @@ impl<'a> Key<'a> {
   }
 }
 
-impl<'a> From<Key<'a>> for TmuxKey {
-  fn from(key: Key<'a>) -> Self {
-    let Key { event, modifiers } = key;
+impl<'a> Key<'a> {
+  /// Converts this key to a tmux key.
+  ///
+  /// SGR mouse escape sequences are only sent if the program running in the
+  /// pane has enabled mouse tracking (`mouse_support`). Otherwise, scroll
+  /// events scroll the pane's scrollback, and other mouse events are dropped.
+  fn into_tmux(self, mouse_support: bool) -> Option<TmuxKey> {
+    let Self { event, modifiers } = self;
 
-    match event {
+    let key = match event {
       Event::Scroll { amount, coords } => {
-        let up = amount > 0;
-        // 64 is the scroll
-        if let Some(Point { x: column, y: line }) = coords {
-          let modifiers = 64 | usize::from(modifiers) | usize::from(up);
+        // in kakoune, a positive scroll amount means scroll down
+        let down = amount > 0;
+        // 64 is wheel up, 65 is wheel down
+        if !mouse_support {
+          TmuxKey::Scroll(amount)
+        } else if let Some(Point { x: column, y: line }) = coords {
+          let modifiers = 64 | usize::from(modifiers) | usize::from(down);
 
           TmuxKey::Esc(format!("<{modifiers};{column};{line}M"))
-        } else if up {
-          TmuxKey::Key("Up".to_string())
-        } else {
+        } else if down {
           TmuxKey::Key("Down".to_string())
+        } else {
+          TmuxKey::Key("Up".to_string())
         }
       }
 
       Event::Mouse { button, action, coords } => {
+        if !mouse_support {
+          return None;
+        }
+
         let modifiers = usize::from(modifiers) | button.map_or(0, usize::from) | usize::from(action);
         let Point { x: column, y: line } = coords;
         let release = if let MouseAction::Release = action { "m" } else { "M" };
@@ -116,7 +131,7 @@ impl<'a> From<Key<'a>> for TmuxKey {
       Event::Named(s) => {
         // tmux's key names differs from kakoune's here, so this is a special case
         if s == "tab" && modifiers.shift {
-          return TmuxKey::Key("BTab".into());
+          return Some(TmuxKey::Key("BTab".into()));
         }
 
         let mut tmux_key = String::new();
@@ -155,7 +170,9 @@ impl<'a> From<Key<'a>> for TmuxKey {
 
         TmuxKey::Key(tmux_key)
       }
-    }
+    };
+
+    Some(key)
   }
 }
 
